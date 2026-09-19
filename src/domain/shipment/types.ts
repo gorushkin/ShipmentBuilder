@@ -1,30 +1,30 @@
 export interface Product {
-  id: string
-  code: string
-  name: string
   barcode: string
-  unitsPerBox: number
-  unitWeightKg: number
-  unitVolumeM3: number
+  code: string
+  id: string
   isMarked: boolean
+  name: string
+  unitsPerBox: number
+  unitVolumeM3: number
+  unitWeightKg: number
 }
 
 export interface Order {
-  id: string
-  number: string
   clientName: string
   controlStatus: 'checked'
+  id: string
+  number: string
 }
 
 export interface PickingContainer {
+  barcode: string
   id: string
   orderId: string
-  barcode: string
 }
 
 export interface SourceLine {
-  id: string
   containerId: string
+  id: string
   productId: string
   /** Исходное количество в штуках, до распределения. */
   quantity: number
@@ -32,49 +32,49 @@ export interface SourceLine {
 
 export interface TransportPlace {
   id: string
-  orderId: string
   number: string
+  orderId: string
   sequence: number
 }
 
 export interface AllocationLine {
   id: string
-  transportPlaceId: string
-  sourceLineId: string
   quantity: number
+  sourceLineId: string
+  transportPlaceId: string
 }
 
 export interface MarkingCode {
   id: string
-  value: string
   /** Происхождение единицы товара, не её текущее расположение. */
   sourceLineId: string
+  value: string
 }
 
 export interface AggregationCode {
   id: string
-  value: string
   markingCodeIds: string[]
+  value: string
 }
 
 export interface ShipmentData {
+  aggregationCodes: AggregationCode[]
+  allocationLines: AllocationLine[]
+  containers: PickingContainer[]
+  markingCodes: MarkingCode[]
   order: Order
   products: Product[]
-  containers: PickingContainer[]
   sourceLines: SourceLine[]
   transportPlaces: TransportPlace[]
-  allocationLines: AllocationLine[]
-  markingCodes: MarkingCode[]
-  aggregationCodes: AggregationCode[]
 }
 
 export interface ShipmentTotals {
+  boxes: number
   containers: number
   sku: number
   units: number
-  boxes: number
-  weightKg: number
   volumeM3: number
+  weightKg: number
 }
 
 export interface RemainingLine extends SourceLine {

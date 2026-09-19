@@ -1,22 +1,19 @@
 import { makeAutoObservable } from 'mobx'
-import { createDemoData } from './demo-data'
-import type {
-  Product,
-  RemainingLine,
-  ShipmentData,
-  ShipmentTotals,
-  SourceLine,
-} from './types'
 
-function calculateTotals(
-  lines: SourceLine[],
-  products: Product[],
-): ShipmentTotals {
+import { createDemoData } from './demo-data'
+import type { Product, RemainingLine, ShipmentData, ShipmentTotals, SourceLine } from './types'
+
+function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
   const containerIds = new Set<string>()
   const productIds = new Set<string>()
   const totals: ShipmentTotals = {
-    containers: 0, sku: 0, units: 0, boxes: 0, weightKg: 0, volumeM3: 0,
+    boxes: 0,
+    containers: 0,
+    sku: 0,
+    units: 0,
+    volumeM3: 0,
+    weightKg: 0,
   }
 
   for (const line of lines) {
@@ -46,17 +43,17 @@ export class ShipmentStore {
   constructor(data: ShipmentData = createDemoData()) {
     // Копируем и вложенные массивы, чтобы экземпляры не делили данные.
     this.data = {
-      order: { ...data.order },
-      products: data.products.map((product) => ({ ...product })),
-      containers: data.containers.map((container) => ({ ...container })),
-      sourceLines: data.sourceLines.map((line) => ({ ...line })),
-      transportPlaces: data.transportPlaces.map((place) => ({ ...place })),
-      allocationLines: data.allocationLines.map((line) => ({ ...line })),
-      markingCodes: data.markingCodes.map((code) => ({ ...code })),
       aggregationCodes: data.aggregationCodes.map((code) => ({
         ...code,
         markingCodeIds: [...code.markingCodeIds],
       })),
+      allocationLines: data.allocationLines.map((line) => ({ ...line })),
+      containers: data.containers.map((container) => ({ ...container })),
+      markingCodes: data.markingCodes.map((code) => ({ ...code })),
+      order: { ...data.order },
+      products: data.products.map((product) => ({ ...product })),
+      sourceLines: data.sourceLines.map((line) => ({ ...line })),
+      transportPlaces: data.transportPlaces.map((place) => ({ ...place })),
     }
     makeAutoObservable(this)
   }

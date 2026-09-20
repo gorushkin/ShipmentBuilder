@@ -5,9 +5,9 @@ import { Progress } from '@/components/ui/progress'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
 import type { ShipmentTotals } from '@/domain/shipment/types'
 
-import { number } from './format'
+import { number } from './shared/format'
 
-function Metrics({ totals }: { totals: ShipmentTotals }) {
+export function Metrics({ totals }: { totals: ShipmentTotals }) {
   const items = [
     ['Контейнеров', number(totals.containers, 0)],
     ['SKU', number(totals.sku, 0)],

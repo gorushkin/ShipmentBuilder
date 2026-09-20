@@ -29,9 +29,8 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
-
-import { containerRows, number } from './format'
-import { UnavailableButton } from './unavailable-control'
+import { containerRows, number } from '@/pages/shipment/shared/format'
+import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 function DisabledModeSelect({
   label,

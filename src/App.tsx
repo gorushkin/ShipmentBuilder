@@ -1,11 +1,10 @@
-import { Button } from '@/components/ui/button'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { ShipmentPage } from '@/pages/shipment/shipment-page'
 
-function App() {
+export default function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button>Click me</Button>
-    </div>
+    <TooltipProvider delay={300}>
+      <ShipmentPage />
+    </TooltipProvider>
   )
 }
-
-export default App

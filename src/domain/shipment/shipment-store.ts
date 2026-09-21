@@ -136,21 +136,25 @@ export class ShipmentStore {
     this.selectedProductId = null
   }
 
+  private ensureActiveTransportPlace(): string {
+    const transportPlaceId = this.activeTransportPlaceId
+    if (!transportPlaceId) return this.createTransportPlace().id
+
+    if (!this.data.transportPlaces.some((place) => place.id === transportPlaceId)) {
+      throw new Error(`Транспортное место ${transportPlaceId} отсутствует`)
+    }
+
+    return transportPlaceId
+  }
+
   distributeSelectedContainer(): void {
     const containerId = this.selectedContainerId
-    const transportPlaceId = this.activeTransportPlaceId
 
     if (!containerId) {
       throw new Error('Контейнер для распределения не выбран')
     }
     if (!this.data.containers.some((container) => container.id === containerId)) {
       throw new Error(`Контейнер ${containerId} отсутствует`)
-    }
-    if (!transportPlaceId) {
-      throw new Error('Активное транспортное место не выбрано')
-    }
-    if (!this.data.transportPlaces.some((place) => place.id === transportPlaceId)) {
-      throw new Error(`Транспортное место ${transportPlaceId} отсутствует`)
     }
 
     const linesToDistribute = this.remainingLines.filter(
@@ -159,6 +163,8 @@ export class ShipmentStore {
     if (linesToDistribute.length === 0) {
       throw new Error(`В контейнере ${containerId} нет остатка к распределению`)
     }
+
+    const transportPlaceId = this.ensureActiveTransportPlace()
 
     const occupiedIds = new Set(this.data.allocationLines.map((line) => line.id))
     const newAllocations: AllocationLine[] = []
@@ -193,11 +199,8 @@ export class ShipmentStore {
   }
 
   get canDistributeSelectedContainer(): boolean {
-    if (!this.selectedContainerId || !this.activeTransportPlaceId) return false
+    if (!this.selectedContainerId) return false
     if (!this.data.containers.some((container) => container.id === this.selectedContainerId)) {
-      return false
-    }
-    if (!this.data.transportPlaces.some((place) => place.id === this.activeTransportPlaceId)) {
       return false
     }
 

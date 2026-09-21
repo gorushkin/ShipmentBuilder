@@ -1,7 +1,14 @@
 import { makeAutoObservable } from 'mobx'
 
 import { createDemoData } from './demo-data'
-import type { Product, RemainingLine, ShipmentData, ShipmentTotals, SourceLine } from './types'
+import type {
+  Product,
+  RemainingLine,
+  ShipmentData,
+  ShipmentTotals,
+  SourceLine,
+  TransportPlace,
+} from './types'
 
 function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
@@ -38,6 +45,7 @@ function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTota
 }
 
 export class ShipmentStore {
+  activeTransportPlaceId: null | string = null
   data: ShipmentData
 
   constructor(data: ShipmentData = createDemoData()) {
@@ -56,6 +64,33 @@ export class ShipmentStore {
       transportPlaces: data.transportPlaces.map((place) => ({ ...place })),
     }
     makeAutoObservable(this)
+  }
+
+  createTransportPlace(): TransportPlace {
+    const sequence =
+      this.data.transportPlaces.reduce(
+        (highestSequence, place) => Math.max(highestSequence, place.sequence),
+        0,
+      ) + 1
+    const suffix = String(sequence).padStart(3, '0')
+    const transportPlace: TransportPlace = {
+      id: `${this.data.order.id}-TP-${suffix}`,
+      number: `ТМ-${suffix}`,
+      orderId: this.data.order.id,
+      sequence,
+    }
+
+    this.data.transportPlaces.push(transportPlace)
+    this.activeTransportPlaceId = transportPlace.id
+    return transportPlace
+  }
+
+  selectTransportPlace(transportPlaceId: string): void {
+    if (!this.data.transportPlaces.some((place) => place.id === transportPlaceId)) {
+      throw new Error(`Транспортное место ${transportPlaceId} отсутствует`)
+    }
+
+    this.activeTransportPlaceId = transportPlaceId
   }
 
   get orderTotals(): ShipmentTotals {

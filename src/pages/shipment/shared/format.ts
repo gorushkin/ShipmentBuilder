@@ -23,3 +23,40 @@ export function containerRows(store: ShipmentStore) {
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 }
+
+export function transportPlaceRows(store: ShipmentStore) {
+  return [...store.data.transportPlaces]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map((transportPlace) => {
+      const allocations = store.data.allocationLines.filter(
+        (line) => line.transportPlaceId === transportPlace.id,
+      )
+      let boxes = 0
+      let units = 0
+      let volume = 0
+      const products = new Set<string>()
+
+      for (const allocation of allocations) {
+        const sourceLine = store.data.sourceLines.find(
+          (line) => line.id === allocation.sourceLineId,
+        )
+        const product = store.data.products.find((item) => item.id === sourceLine?.productId)
+        if (!product || allocation.quantity <= 0) continue
+
+        products.add(product.id)
+        units += allocation.quantity
+        boxes += allocation.quantity / product.unitsPerBox
+        volume += allocation.quantity * product.unitVolumeM3
+      }
+
+      return {
+        boxes,
+        id: transportPlace.id,
+        name: transportPlace.number,
+        sequence: transportPlace.sequence,
+        sku: products.size,
+        units,
+        volume,
+      }
+    })
+}

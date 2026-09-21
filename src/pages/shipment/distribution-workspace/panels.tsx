@@ -4,15 +4,6 @@ import { observer } from 'mobx-react-lite'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
-import { containerRows, number } from '@/pages/shipment/shared/format'
+import { containerRows, number, transportPlaceRows } from '@/pages/shipment/shared/format'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 function DisabledModeSelect({
@@ -64,30 +55,12 @@ function DisabledModeSelect({
   )
 }
 
-function CreateTransportPlaceAction() {
+function CreateTransportPlaceAction({ store }: { store: ShipmentStore }) {
   return (
-    <Dialog>
-      <Tooltip>
-        <TooltipTrigger render={<span className="disabled-control" />}>
-          <DialogTrigger render={<Button disabled size="sm" />}>
-            <Plus />
-            Создать ТМ
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent>Создание ТМ появится в следующем функциональном change</TooltipContent>
-      </Tooltip>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Создание транспортного места</DialogTitle>
-          <DialogDescription>
-            Форма будет добавлена вместе с логикой создания транспортных мест.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button disabled>Создать</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Button size="sm" onClick={() => store.createTransportPlace()}>
+      <Plus />
+      Создать ТМ
+    </Button>
   )
 }
 
@@ -155,14 +128,20 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
   )
 })
 
-export function DestinationPanel() {
+export const DestinationPanel = observer(function DestinationPanel({
+  store,
+}: {
+  store: ShipmentStore
+}) {
+  const rows = transportPlaceRows(store)
+
   return (
     <section className="work-panel" aria-labelledby="destination-title">
       <header className="panel-header">
         <div className="panel-title">
           <Layers aria-hidden="true" />
           <h2 id="destination-title">Транспортные места</h2>
-          <CreateTransportPlaceAction />
+          <CreateTransportPlaceAction store={store} />
         </div>
         <div className="panel-toolbar">
           <DisabledModeSelect
@@ -184,27 +163,60 @@ export function DestinationPanel() {
       <div className="table-scroll destination-scroll">
         <Table aria-label="Транспортные места">
           <ShipmentTableHeader destination />
-          <TableBody />
+          <TableBody>
+            {rows.map((row) => {
+              const isActive = row.id === store.activeTransportPlaceId
+
+              return (
+                <TableRow
+                  aria-selected={isActive}
+                  className="transport-place-row"
+                  data-active={isActive}
+                  key={row.id}
+                  onClick={() => store.selectTransportPlace(row.id)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    store.selectTransportPlace(row.id)
+                  }}
+                  tabIndex={0}
+                >
+                  <TableCell>
+                    <span className="container-name">
+                      <Layers aria-hidden="true" />
+                      {row.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>{row.sku}</TableCell>
+                  <TableCell>{number(row.units, 0)}</TableCell>
+                  <TableCell>{number(row.boxes)}</TableCell>
+                  <TableCell>{number(row.volume, 4)}</TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
         </Table>
-        <div className="empty-state">
-          <div className="empty-icon">
-            <Layers aria-hidden="true" />
+        {rows.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Layers aria-hidden="true" />
+            </div>
+            <h3>
+              Транспортные места
+              <br />
+              ещё не созданы
+            </h3>
+            <p>
+              Здесь появятся места
+              <br />
+              для упаковки товаров заказа
+            </p>
           </div>
-          <h3>
-            Транспортные места
-            <br />
-            ещё не созданы
-          </h3>
-          <p>
-            Здесь появятся места
-            <br />
-            для упаковки товаров заказа
-          </p>
-        </div>
+        )}
       </div>
     </section>
   )
-}
+})
 
 export function TransferActions() {
   return (

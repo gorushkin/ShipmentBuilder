@@ -302,6 +302,21 @@
   display: grid;
   grid-template-rows: auto minmax(200px, 1fr);
 }
+.transport-place-row {
+  cursor: pointer;
+  outline: none;
+}
+.transport-place-row[data-active='true'] {
+  background: #edf3ff;
+  box-shadow: inset 3px 0 #245ad5;
+}
+.transport-place-row:focus-visible {
+  outline: 2px solid #245ad5;
+  outline-offset: -2px;
+}
+.transport-place-row[data-active='true']:hover {
+  background: #e7efff;
+}
 .empty-state {
   display: grid;
   align-content: center;

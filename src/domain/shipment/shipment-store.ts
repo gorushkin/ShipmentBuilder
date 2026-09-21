@@ -70,6 +70,10 @@ export class ShipmentStore {
       transportPlaces: data.transportPlaces.map((place) => ({ ...place })),
     }
     makeAutoObservable(this)
+
+    if (this.data.transportPlaces.length === 0) {
+      this.createTransportPlace()
+    }
   }
 
   createTransportPlace(): TransportPlace {

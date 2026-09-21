@@ -181,6 +181,40 @@ export class ShipmentStore {
     )
   }
 
+  returnActiveTransportPlaceContents(): void {
+    const transportPlaceId = this.activeTransportPlaceId
+
+    if (!transportPlaceId) {
+      throw new Error('Активное транспортное место не выбрано')
+    }
+    if (!this.data.transportPlaces.some((place) => place.id === transportPlaceId)) {
+      throw new Error(`Транспортное место ${transportPlaceId} отсутствует`)
+    }
+    if (
+      !this.data.allocationLines.some(
+        (line) => line.transportPlaceId === transportPlaceId && line.quantity > 0,
+      )
+    ) {
+      throw new Error(`Транспортное место ${transportPlaceId} пусто`)
+    }
+
+    this.data.allocationLines = this.data.allocationLines.filter(
+      (line) => line.transportPlaceId !== transportPlaceId,
+    )
+    this.selectedContainerId = null
+  }
+
+  get canReturnActiveTransportPlaceContents(): boolean {
+    if (!this.activeTransportPlaceId) return false
+    if (!this.data.transportPlaces.some((place) => place.id === this.activeTransportPlaceId)) {
+      return false
+    }
+
+    return this.data.allocationLines.some(
+      (line) => line.transportPlaceId === this.activeTransportPlaceId && line.quantity > 0,
+    )
+  }
+
   get orderTotals(): ShipmentTotals {
     return {
       ...calculateTotals(this.data.sourceLines, this.data.products),

@@ -240,12 +240,7 @@ export const TransferActions = observer(function TransferActions({
 }: {
   store: ShipmentStore
 }) {
-  const unavailableActions = [
-    { direction: 'forward', label: 'Переместить всё по фильтру' },
-    { direction: 'forward', label: 'Переместить количество' },
-    { direction: 'return', label: 'Вернуть строку' },
-    { direction: 'return', label: 'Вернуть всё по фильтру' },
-  ] as const
+  const unavailableActions = ['Переместить всё по фильтру', 'Переместить количество'] as const
 
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
@@ -259,17 +254,25 @@ export const TransferActions = observer(function TransferActions({
         <ArrowRight />
         <span>Переместить строку</span>
       </Button>
-      {unavailableActions.map(({ direction, label }) => (
-        <UnavailableButton
-          variant="outline"
-          className="transfer-button"
-          triggerClassName={label === 'Вернуть строку' ? 'return-action' : undefined}
-          key={label}
-        >
-          {direction === 'forward' ? <ArrowRight /> : <ArrowLeft />}
+      {unavailableActions.map((label) => (
+        <UnavailableButton variant="outline" className="transfer-button" key={label}>
+          <ArrowRight />
           <span>{label}</span>
         </UnavailableButton>
       ))}
+      <Button
+        variant="outline"
+        className="transfer-button return-action"
+        disabled={!store.canReturnActiveTransportPlaceContents}
+        onClick={() => store.returnActiveTransportPlaceContents()}
+      >
+        <ArrowLeft />
+        <span>Вернуть строку</span>
+      </Button>
+      <UnavailableButton variant="outline" className="transfer-button">
+        <ArrowLeft />
+        <span>Вернуть всё по фильтру</span>
+      </UnavailableButton>
     </aside>
   )
 })

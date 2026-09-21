@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Box, Layers, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Box, Filter, Layers, Plus, X } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
 import {
   containerRows,
+  filteredSourceRows,
   number,
   productRows,
   transportPlaceProductRows,
@@ -99,7 +100,7 @@ function ShipmentTableHeader({ destination = false }: { destination?: boolean })
   return (
     <TableHeader>
       <TableRow>
-        {[destination ? 'ТМ' : 'Контейнер', 'SKU', 'ШТ', 'Короба', 'Объём, м³'].map((label) => (
+        {[destination ? 'ТМ' : 'Контейнер', 'SKU', 'ШТ', 'Короба', 'Объём, м³', ''].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
@@ -113,13 +114,44 @@ function ProductTableHeader() {
   return (
     <TableHeader>
       <TableRow>
-        {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров'].map((label) => (
+        {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров', ''].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
         ))}
       </TableRow>
     </TableHeader>
+  )
+}
+
+function FilteredSourceTableHeader() {
+  return (
+    <TableHeader>
+      <TableRow>
+        {['Контейнер', 'Код товара', 'Наименование', 'ШТ', 'Короба'].map((label) => (
+          <TableHead scope="col" key={label}>
+            {label}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+  )
+}
+
+function FilterAction({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      aria-label="Включить фильтр"
+      className="row-filter-action"
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+      size="icon-sm"
+      variant="ghost"
+    >
+      <Filter />
+    </Button>
   )
 }
 
@@ -140,10 +172,25 @@ function TransportPlaceProductTableHeader() {
 export const SourcePanel = observer(function SourcePanel({ store }: { store: ShipmentStore }) {
   const containerRowsList = containerRows(store)
   const productRowsList = productRows(store)
-  const isProductMode = store.sourceDisplayMode === 'products'
+  const filteredRowsList = filteredSourceRows(store)
+  const sourceFilter = store.sourceFilter
+  const isFiltered = sourceFilter !== null
+  const isProductMode = isFiltered || store.sourceDisplayMode === 'products'
   const selectedContainer = containerRowsList.find((row) => row.id === store.selectedContainerId)
   const selectedProduct = productRowsList.find((row) => row.id === store.selectedProductId)
-  const rowCount = isProductMode ? productRowsList.length : containerRowsList.length
+  const rowCount = isFiltered
+    ? filteredRowsList.length
+    : isProductMode
+      ? productRowsList.length
+      : containerRowsList.length
+  const filteredContainer =
+    sourceFilter?.type === 'container'
+      ? store.data.containers.find((container) => container.id === sourceFilter.containerId)
+      : undefined
+  const filteredProduct =
+    sourceFilter?.type === 'product'
+      ? store.data.products.find((product) => product.id === sourceFilter.productId)
+      : undefined
   return (
     <section className="work-panel" aria-labelledby="source-title">
       <header className="panel-header">
@@ -156,14 +203,77 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
         </div>
         <div className="panel-toolbar">
           <SourceModeSelect store={store} />
-          <span>Контейнер: {selectedContainer?.name ?? '—'}</span>
-          <span>
-            Товар: {selectedProduct ? `${selectedProduct.code} · ${selectedProduct.name}` : '—'}
+          <span className="filter-indicator">
+            Контейнер: {filteredContainer?.barcode ?? selectedContainer?.name ?? '—'}
+            {filteredContainer && (
+              <Button
+                aria-label="Снять фильтр контейнера"
+                onClick={() => store.clearSourceFilter()}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <X />
+              </Button>
+            )}
+          </span>
+          <span className="filter-indicator">
+            Товар:{' '}
+            {filteredProduct
+              ? `${filteredProduct.code} · ${filteredProduct.name}`
+              : selectedProduct
+                ? `${selectedProduct.code} · ${selectedProduct.name}`
+                : '—'}
+            {filteredProduct && (
+              <Button
+                aria-label="Снять фильтр товара"
+                onClick={() => store.clearSourceFilter()}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <X />
+              </Button>
+            )}
           </span>
         </div>
       </header>
       <div className="table-scroll">
-        {isProductMode ? (
+        {isFiltered ? (
+          filteredRowsList.length > 0 ? (
+            <Table aria-label="Отфильтрованные товары источника">
+              <FilteredSourceTableHeader />
+              <TableBody>
+                {filteredRowsList.map((row) => {
+                  const isSelected = row.id === store.selectedSourceLineId
+                  return (
+                    <TableRow
+                      aria-selected={isSelected}
+                      className="source-product-row"
+                      data-active={isSelected}
+                      key={row.id}
+                      onClick={() => store.selectSourceLine(row.id)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        store.selectSourceLine(row.id)
+                      }}
+                      tabIndex={0}
+                    >
+                      <TableCell>{row.container}</TableCell>
+                      <TableCell>{row.code}</TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{number(row.units, 0)}</TableCell>
+                      <TableCell>{number(row.boxes)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="empty-state">
+              <h3>Нет товаров для распределения</h3>
+            </div>
+          )
+        ) : isProductMode ? (
           productRowsList.length > 0 ? (
             <Table aria-label="Товары к распределению">
               <ProductTableHeader />
@@ -190,6 +300,9 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                       <TableCell>{number(row.units, 0)}</TableCell>
                       <TableCell>{number(row.boxes)}</TableCell>
                       <TableCell>{number(row.containers, 0)}</TableCell>
+                      <TableCell>
+                        <FilterAction onClick={() => store.setProductFilter(row.id)} />
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -234,6 +347,9 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                     <TableCell>{number(row.units, 0)}</TableCell>
                     <TableCell>{number(row.boxes)}</TableCell>
                     <TableCell>{number(row.volume, 4)}</TableCell>
+                    <TableCell>
+                      <FilterAction onClick={() => store.setContainerFilter(row.id)} />
+                    </TableCell>
                   </TableRow>
                 )
               })}
@@ -391,12 +507,15 @@ export const TransferActions = observer(function TransferActions({
         variant="outline"
         className="transfer-button"
         disabled={
-          store.sourceDisplayMode === 'containers'
-            ? !store.canDistributeSelectedContainer
-            : !store.canDistributeSelectedProduct
+          store.sourceFilter
+            ? !store.canDistributeSelectedSourceLine
+            : store.sourceDisplayMode === 'containers'
+              ? !store.canDistributeSelectedContainer
+              : !store.canDistributeSelectedProduct
         }
         onClick={() => {
-          if (store.sourceDisplayMode === 'containers') store.distributeSelectedContainer()
+          if (store.sourceFilter) store.distributeSelectedSourceLine()
+          else if (store.sourceDisplayMode === 'containers') store.distributeSelectedContainer()
           else store.distributeSelectedProduct()
         }}
       >

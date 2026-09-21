@@ -64,6 +64,30 @@ export function productRows(store: ShipmentStore) {
     .sort((a, b) => a.code.localeCompare(b.code))
 }
 
+export function filteredSourceRows(store: ShipmentStore) {
+  const productsById = new Map(store.data.products.map((product) => [product.id, product]))
+  const containersById = new Map(
+    store.data.containers.map((container) => [container.id, container]),
+  )
+
+  return store.filteredRemainingLines
+    .map((line) => {
+      const product = productsById.get(line.productId)
+      const container = containersById.get(line.containerId)
+      if (!product || !container) return null
+      return {
+        boxes: line.remainingQuantity / product.unitsPerBox,
+        code: product.code,
+        container: container.barcode,
+        id: line.id,
+        name: product.name,
+        units: line.remainingQuantity,
+      }
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .sort((a, b) => a.code.localeCompare(b.code) || a.container.localeCompare(b.container))
+}
+
 export function transportPlaceRows(store: ShipmentStore) {
   return [...store.data.transportPlaces]
     .sort((a, b) => a.sequence - b.sequence)

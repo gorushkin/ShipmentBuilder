@@ -13,6 +13,8 @@ import type {
 
 export type SourceDisplayMode = 'containers' | 'products'
 export type DestinationDisplayMode = 'transport-places' | 'transport-place-products'
+export type SourceFilter =
+  { containerId: string; type: 'container' } | { productId: string; type: 'product' }
 
 function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
@@ -54,6 +56,8 @@ export class ShipmentStore {
   destinationDisplayMode: DestinationDisplayMode = 'transport-places'
   selectedContainerId: null | string = null
   selectedProductId: null | string = null
+  selectedSourceLineId: null | string = null
+  sourceFilter: null | SourceFilter = null
   selectedTransportPlaceProductId: null | string = null
   sourceDisplayMode: SourceDisplayMode = 'containers'
 
@@ -123,6 +127,7 @@ export class ShipmentStore {
 
     this.selectedContainerId = containerId
     this.selectedProductId = null
+    this.selectedSourceLineId = null
   }
 
   selectProduct(productId: string): void {
@@ -139,6 +144,7 @@ export class ShipmentStore {
 
     this.selectedContainerId = null
     this.selectedProductId = productId
+    this.selectedSourceLineId = null
   }
 
   setSourceDisplayMode(mode: SourceDisplayMode): void {
@@ -147,6 +153,43 @@ export class ShipmentStore {
     this.sourceDisplayMode = mode
     this.selectedContainerId = null
     this.selectedProductId = null
+    this.selectedSourceLineId = null
+  }
+
+  setContainerFilter(containerId: string): void {
+    if (!this.data.containers.some((container) => container.id === containerId)) {
+      throw new Error(`Контейнер ${containerId} отсутствует`)
+    }
+    this.sourceFilter = { containerId, type: 'container' }
+    this.selectedContainerId = null
+    this.selectedProductId = null
+    this.selectedSourceLineId = null
+  }
+
+  setProductFilter(productId: string): void {
+    if (!this.data.products.some((product) => product.id === productId)) {
+      throw new Error(`Товар ${productId} отсутствует`)
+    }
+    this.sourceFilter = { productId, type: 'product' }
+    this.selectedContainerId = null
+    this.selectedProductId = null
+    this.selectedSourceLineId = null
+  }
+
+  clearSourceFilter(): void {
+    this.sourceFilter = null
+    this.selectedContainerId = null
+    this.selectedProductId = null
+    this.selectedSourceLineId = null
+  }
+
+  selectSourceLine(sourceLineId: string): void {
+    if (!this.filteredRemainingLines.some((line) => line.id === sourceLineId)) {
+      throw new Error(`Строка источника ${sourceLineId} недоступна в текущем фильтре`)
+    }
+    this.selectedContainerId = null
+    this.selectedProductId = null
+    this.selectedSourceLineId = sourceLineId
   }
 
   setDestinationDisplayMode(mode: DestinationDisplayMode): void {
@@ -242,6 +285,23 @@ export class ShipmentStore {
 
     this.allocateRemainingLines(linesToDistribute)
     this.selectedProductId = null
+  }
+
+  distributeSelectedSourceLine(): void {
+    const sourceLineId = this.selectedSourceLineId
+    const line = this.filteredRemainingLines.find((item) => item.id === sourceLineId)
+    if (!line) throw new Error('Строка источника для распределения не выбрана')
+
+    this.allocateRemainingLines([line])
+    this.selectedSourceLineId = null
+  }
+
+  get canDistributeSelectedSourceLine(): boolean {
+    return Boolean(
+      this.sourceFilter &&
+      this.selectedSourceLineId &&
+      this.filteredRemainingLines.some((line) => line.id === this.selectedSourceLineId),
+    )
   }
 
   get canDistributeSelectedProduct(): boolean {
@@ -386,6 +446,17 @@ export class ShipmentStore {
       ...line,
       remainingQuantity: line.quantity - (allocatedBySource.get(line.id) ?? 0),
     }))
+  }
+
+  get filteredRemainingLines(): RemainingLine[] {
+    const filter = this.sourceFilter
+    if (!filter) return []
+    return this.remainingLines.filter((line) => {
+      if (filter.type === 'container') {
+        return line.containerId === filter.containerId && line.remainingQuantity > 0
+      }
+      return line.productId === filter.productId && line.remainingQuantity > 0
+    })
   }
 
   get remainingTotals(): ShipmentTotals {

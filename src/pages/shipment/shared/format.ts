@@ -25,6 +25,38 @@ export function containerRows(store: ShipmentStore) {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export function productRows(store: ShipmentStore) {
+  const productsById = new Map(store.data.products.map((product) => [product.id, product]))
+  const rows = new Map<
+    string,
+    { boxes: number; code: string; containers: Set<string>; id: string; name: string; units: number }
+  >()
+
+  for (const line of store.remainingLines) {
+    if (line.remainingQuantity <= 0) continue
+
+    const product = productsById.get(line.productId)
+    if (!product) continue
+
+    const row = rows.get(product.id) ?? {
+      boxes: 0,
+      code: product.code,
+      containers: new Set<string>(),
+      id: product.id,
+      name: product.name,
+      units: 0,
+    }
+    row.units += line.remainingQuantity
+    row.boxes += line.remainingQuantity / product.unitsPerBox
+    row.containers.add(line.containerId)
+    rows.set(product.id, row)
+  }
+
+  return [...rows.values()]
+    .map(({ containers, ...row }) => ({ ...row, containers: containers.size }))
+    .sort((a, b) => a.code.localeCompare(b.code))
+}
+
 export function transportPlaceRows(store: ShipmentStore) {
   return [...store.data.transportPlaces]
     .sort((a, b) => a.sequence - b.sequence)

@@ -11,6 +11,8 @@ import type {
   TransportPlace,
 } from './types'
 
+export type SourceDisplayMode = 'containers' | 'products'
+
 function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
   const containerIds = new Set<string>()
@@ -49,6 +51,8 @@ export class ShipmentStore {
   activeTransportPlaceId: null | string = null
   data: ShipmentData
   selectedContainerId: null | string = null
+  selectedProductId: null | string = null
+  sourceDisplayMode: SourceDisplayMode = 'containers'
 
   constructor(data: ShipmentData = createDemoData()) {
     // Копируем и вложенные массивы, чтобы экземпляры не делили данные.
@@ -109,6 +113,27 @@ export class ShipmentStore {
     }
 
     this.selectedContainerId = containerId
+    this.selectedProductId = null
+  }
+
+  selectProduct(productId: string): void {
+    if (!this.data.products.some((product) => product.id === productId)) {
+      throw new Error(`Товар ${productId} отсутствует`)
+    }
+    if (!this.remainingLines.some((line) => line.productId === productId && line.remainingQuantity > 0)) {
+      throw new Error(`У товара ${productId} нет остатка к распределению`)
+    }
+
+    this.selectedContainerId = null
+    this.selectedProductId = productId
+  }
+
+  setSourceDisplayMode(mode: SourceDisplayMode): void {
+    if (this.sourceDisplayMode === mode) return
+
+    this.sourceDisplayMode = mode
+    this.selectedContainerId = null
+    this.selectedProductId = null
   }
 
   distributeSelectedContainer(): void {

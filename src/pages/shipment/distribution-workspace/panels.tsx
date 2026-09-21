@@ -20,7 +20,12 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
-import { containerRows, number, transportPlaceRows } from '@/pages/shipment/shared/format'
+import {
+  containerRows,
+  number,
+  productRows,
+  transportPlaceRows,
+} from '@/pages/shipment/shared/format'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 function DisabledModeSelect({
@@ -55,6 +60,27 @@ function DisabledModeSelect({
   )
 }
 
+function SourceModeSelect({ store }: { store: ShipmentStore }) {
+  const selectedLabel = store.sourceDisplayMode === 'containers' ? 'Контейнеры' : 'Товары'
+
+  return (
+    <Select
+      value={store.sourceDisplayMode}
+      onValueChange={(value) => {
+        if (value === 'containers' || value === 'products') store.setSourceDisplayMode(value)
+      }}
+    >
+      <SelectTrigger className="mode-control" size="sm" aria-label="Режим источника">
+        <SelectValue>{selectedLabel}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="containers">Контейнеры</SelectItem>
+        <SelectItem value="products">Товары</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
 function CreateTransportPlaceAction({ store }: { store: ShipmentStore }) {
   return (
     <Button size="sm" onClick={() => store.createTransportPlace()}>
@@ -78,9 +104,27 @@ function ShipmentTableHeader({ destination = false }: { destination?: boolean })
   )
 }
 
+function ProductTableHeader() {
+  return (
+    <TableHeader>
+      <TableRow>
+        {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров'].map((label) => (
+          <TableHead scope="col" key={label}>
+            {label}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+  )
+}
+
 export const SourcePanel = observer(function SourcePanel({ store }: { store: ShipmentStore }) {
-  const rows = containerRows(store)
-  const selectedRow = rows.find((row) => row.id === store.selectedContainerId)
+  const containerRowsList = containerRows(store)
+  const productRowsList = productRows(store)
+  const isProductMode = store.sourceDisplayMode === 'products'
+  const selectedContainer = containerRowsList.find((row) => row.id === store.selectedContainerId)
+  const selectedProduct = productRowsList.find((row) => row.id === store.selectedProductId)
+  const rowCount = isProductMode ? productRowsList.length : containerRowsList.length
   return (
     <section className="work-panel" aria-labelledby="source-title">
       <header className="panel-header">
@@ -88,58 +132,95 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
           <Box aria-hidden="true" />
           <h2 id="source-title">К распределению</h2>
           <Badge variant="secondary" className="count">
-            {rows.length}
+            {rowCount}
           </Badge>
         </div>
         <div className="panel-toolbar">
-          <DisabledModeSelect
-            label="Режим источника"
-            value="containers"
-            options={[
-              { label: 'Контейнеры', value: 'containers' },
-              { label: 'Товары', value: 'products' },
-            ]}
-          />
-          <span>Контейнер: {selectedRow?.name ?? '—'}</span>
-          <span>Товар: —</span>
+          <SourceModeSelect store={store} />
+          <span>Контейнер: {selectedContainer?.name ?? '—'}</span>
+          <span>
+            Товар: {selectedProduct ? `${selectedProduct.code} · ${selectedProduct.name}` : '—'}
+          </span>
         </div>
       </header>
       <div className="table-scroll">
-        <Table aria-label="Контейнеры отбора">
-          <ShipmentTableHeader />
-          <TableBody>
-            {rows.map((row) => {
-              const isSelected = row.id === store.selectedContainerId
+        {isProductMode ? (
+          productRowsList.length > 0 ? (
+            <Table aria-label="Товары к распределению">
+              <ProductTableHeader />
+              <TableBody>
+                {productRowsList.map((row) => {
+                  const isSelected = row.id === store.selectedProductId
 
-              return (
-                <TableRow
-                  aria-selected={isSelected}
-                  className="source-container-row"
-                  data-active={isSelected}
-                  key={row.id}
-                  onClick={() => store.selectContainer(row.id)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return
-                    event.preventDefault()
-                    store.selectContainer(row.id)
-                  }}
-                  tabIndex={0}
-                >
-                  <TableCell>
-                    <span className="container-name">
-                      <Box aria-hidden="true" />
-                      {row.name}
-                    </span>
-                  </TableCell>
-                  <TableCell>{row.sku}</TableCell>
-                  <TableCell>{number(row.units, 0)}</TableCell>
-                  <TableCell>{number(row.boxes)}</TableCell>
-                  <TableCell>{number(row.volume, 4)}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+                  return (
+                    <TableRow
+                      aria-selected={isSelected}
+                      className="source-product-row"
+                      data-active={isSelected}
+                      key={row.id}
+                      onClick={() => store.selectProduct(row.id)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        store.selectProduct(row.id)
+                      }}
+                      tabIndex={0}
+                    >
+                      <TableCell>{row.code}</TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{number(row.units, 0)}</TableCell>
+                      <TableCell>{number(row.boxes)}</TableCell>
+                      <TableCell>{number(row.containers, 0)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="empty-state source-empty-state">
+              <div className="empty-icon">
+                <Box aria-hidden="true" />
+              </div>
+              <h3>Все товары распределены</h3>
+            </div>
+          )
+        ) : (
+          <Table aria-label="Контейнеры отбора">
+            <ShipmentTableHeader />
+            <TableBody>
+              {containerRowsList.map((row) => {
+                const isSelected = row.id === store.selectedContainerId
+
+                return (
+                  <TableRow
+                    aria-selected={isSelected}
+                    className="source-container-row"
+                    data-active={isSelected}
+                    key={row.id}
+                    onClick={() => store.selectContainer(row.id)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      store.selectContainer(row.id)
+                    }}
+                    tabIndex={0}
+                  >
+                    <TableCell>
+                      <span className="container-name">
+                        <Box aria-hidden="true" />
+                        {row.name}
+                      </span>
+                    </TableCell>
+                    <TableCell>{row.sku}</TableCell>
+                    <TableCell>{number(row.units, 0)}</TableCell>
+                    <TableCell>{number(row.boxes)}</TableCell>
+                    <TableCell>{number(row.volume, 4)}</TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </section>
   )

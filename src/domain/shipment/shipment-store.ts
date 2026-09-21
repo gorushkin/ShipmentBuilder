@@ -12,6 +12,7 @@ import type {
 } from './types'
 
 export type SourceDisplayMode = 'containers' | 'products'
+export type DestinationDisplayMode = 'transport-places' | 'transport-place-products'
 
 function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
@@ -50,8 +51,10 @@ function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTota
 export class ShipmentStore {
   activeTransportPlaceId: null | string = null
   data: ShipmentData
+  destinationDisplayMode: DestinationDisplayMode = 'transport-places'
   selectedContainerId: null | string = null
   selectedProductId: null | string = null
+  selectedTransportPlaceProductId: null | string = null
   sourceDisplayMode: SourceDisplayMode = 'containers'
 
   constructor(data: ShipmentData = createDemoData()) {
@@ -92,6 +95,7 @@ export class ShipmentStore {
 
     this.data.transportPlaces.push(transportPlace)
     this.activeTransportPlaceId = transportPlace.id
+    this.selectedTransportPlaceProductId = null
     return transportPlace
   }
 
@@ -101,6 +105,7 @@ export class ShipmentStore {
     }
 
     this.activeTransportPlaceId = transportPlaceId
+    this.selectedTransportPlaceProductId = null
   }
 
   selectContainer(containerId: string): void {
@@ -124,7 +129,11 @@ export class ShipmentStore {
     if (!this.data.products.some((product) => product.id === productId)) {
       throw new Error(`Товар ${productId} отсутствует`)
     }
-    if (!this.remainingLines.some((line) => line.productId === productId && line.remainingQuantity > 0)) {
+    if (
+      !this.remainingLines.some(
+        (line) => line.productId === productId && line.remainingQuantity > 0,
+      )
+    ) {
       throw new Error(`У товара ${productId} нет остатка к распределению`)
     }
 
@@ -138,6 +147,37 @@ export class ShipmentStore {
     this.sourceDisplayMode = mode
     this.selectedContainerId = null
     this.selectedProductId = null
+  }
+
+  setDestinationDisplayMode(mode: DestinationDisplayMode): void {
+    if (mode === 'transport-place-products' && !this.activeTransportPlaceId) {
+      throw new Error('Для просмотра товаров выберите транспортное место')
+    }
+    if (this.destinationDisplayMode === mode) return
+
+    this.destinationDisplayMode = mode
+    this.selectedTransportPlaceProductId = null
+  }
+
+  selectTransportPlaceProduct(productId: string): void {
+    const transportPlaceId = this.activeTransportPlaceId
+    if (!transportPlaceId) {
+      throw new Error('Активное транспортное место не выбрано')
+    }
+    if (
+      !this.data.allocationLines.some((allocation) => {
+        if (allocation.transportPlaceId !== transportPlaceId || allocation.quantity <= 0)
+          return false
+        return (
+          this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)?.productId ===
+          productId
+        )
+      })
+    ) {
+      throw new Error(`В транспортном месте нет товара ${productId}`)
+    }
+
+    this.selectedTransportPlaceProductId = productId
   }
 
   private ensureActiveTransportPlace(): string {
@@ -168,8 +208,52 @@ export class ShipmentStore {
       throw new Error(`В контейнере ${containerId} нет остатка к распределению`)
     }
 
-    const transportPlaceId = this.ensureActiveTransportPlace()
+    this.allocateRemainingLines(linesToDistribute)
+    this.selectedContainerId = null
+  }
 
+  get canDistributeSelectedContainer(): boolean {
+    if (this.sourceDisplayMode !== 'containers') return false
+    if (!this.selectedContainerId) return false
+    if (!this.data.containers.some((container) => container.id === this.selectedContainerId)) {
+      return false
+    }
+
+    return this.remainingLines.some(
+      (line) => line.containerId === this.selectedContainerId && line.remainingQuantity > 0,
+    )
+  }
+
+  distributeSelectedProduct(): void {
+    const productId = this.selectedProductId
+    if (!productId) {
+      throw new Error('Товар для распределения не выбран')
+    }
+    if (!this.data.products.some((product) => product.id === productId)) {
+      throw new Error(`Товар ${productId} отсутствует`)
+    }
+
+    const linesToDistribute = this.remainingLines.filter(
+      (line) => line.productId === productId && line.remainingQuantity > 0,
+    )
+    if (linesToDistribute.length === 0) {
+      throw new Error(`У товара ${productId} нет остатка к распределению`)
+    }
+
+    this.allocateRemainingLines(linesToDistribute)
+    this.selectedProductId = null
+  }
+
+  get canDistributeSelectedProduct(): boolean {
+    if (this.sourceDisplayMode !== 'products' || !this.selectedProductId) return false
+
+    return this.remainingLines.some(
+      (line) => line.productId === this.selectedProductId && line.remainingQuantity > 0,
+    )
+  }
+
+  private allocateRemainingLines(linesToDistribute: RemainingLine[]): void {
+    const transportPlaceId = this.ensureActiveTransportPlace()
     const occupiedIds = new Set(this.data.allocationLines.map((line) => line.id))
     const newAllocations: AllocationLine[] = []
 
@@ -199,18 +283,6 @@ export class ShipmentStore {
     }
 
     this.data.allocationLines.push(...newAllocations)
-    this.selectedContainerId = null
-  }
-
-  get canDistributeSelectedContainer(): boolean {
-    if (!this.selectedContainerId) return false
-    if (!this.data.containers.some((container) => container.id === this.selectedContainerId)) {
-      return false
-    }
-
-    return this.remainingLines.some(
-      (line) => line.containerId === this.selectedContainerId && line.remainingQuantity > 0,
-    )
   }
 
   returnActiveTransportPlaceContents(): void {
@@ -234,9 +306,11 @@ export class ShipmentStore {
       (line) => line.transportPlaceId !== transportPlaceId,
     )
     this.selectedContainerId = null
+    this.selectedTransportPlaceProductId = null
   }
 
   get canReturnActiveTransportPlaceContents(): boolean {
+    if (this.destinationDisplayMode !== 'transport-places') return false
     if (!this.activeTransportPlaceId) return false
     if (!this.data.transportPlaces.some((place) => place.id === this.activeTransportPlaceId)) {
       return false
@@ -245,6 +319,51 @@ export class ShipmentStore {
     return this.data.allocationLines.some(
       (line) => line.transportPlaceId === this.activeTransportPlaceId && line.quantity > 0,
     )
+  }
+
+  returnSelectedTransportPlaceProduct(): void {
+    const transportPlaceId = this.activeTransportPlaceId
+    const productId = this.selectedTransportPlaceProductId
+    if (!transportPlaceId) throw new Error('Активное транспортное место не выбрано')
+    if (!productId) throw new Error('Товар транспортного места не выбран')
+
+    const hasProduct = this.data.allocationLines.some((allocation) => {
+      if (allocation.transportPlaceId !== transportPlaceId || allocation.quantity <= 0) return false
+      return (
+        this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)?.productId ===
+        productId
+      )
+    })
+    if (!hasProduct) throw new Error(`В транспортном месте нет товара ${productId}`)
+
+    this.data.allocationLines = this.data.allocationLines.filter((allocation) => {
+      if (allocation.transportPlaceId !== transportPlaceId) return true
+      return (
+        this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)?.productId !==
+        productId
+      )
+    })
+    this.selectedTransportPlaceProductId = null
+  }
+
+  get canReturnSelectedTransportPlaceProduct(): boolean {
+    if (
+      this.destinationDisplayMode !== 'transport-place-products' ||
+      !this.activeTransportPlaceId ||
+      !this.selectedTransportPlaceProductId
+    ) {
+      return false
+    }
+
+    return this.data.allocationLines.some((allocation) => {
+      if (allocation.transportPlaceId !== this.activeTransportPlaceId || allocation.quantity <= 0) {
+        return false
+      }
+      return (
+        this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)?.productId ===
+        this.selectedTransportPlaceProductId
+      )
+    })
   }
 
   get orderTotals(): ShipmentTotals {

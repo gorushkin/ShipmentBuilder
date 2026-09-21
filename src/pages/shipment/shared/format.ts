@@ -29,7 +29,14 @@ export function productRows(store: ShipmentStore) {
   const productsById = new Map(store.data.products.map((product) => [product.id, product]))
   const rows = new Map<
     string,
-    { boxes: number; code: string; containers: Set<string>; id: string; name: string; units: number }
+    {
+      boxes: number
+      code: string
+      containers: Set<string>
+      id: string
+      name: string
+      units: number
+    }
   >()
 
   for (const line of store.remainingLines) {
@@ -92,4 +99,37 @@ export function transportPlaceRows(store: ShipmentStore) {
         volume,
       }
     })
+}
+
+export function transportPlaceProductRows(store: ShipmentStore) {
+  const transportPlaceId = store.activeTransportPlaceId
+  if (!transportPlaceId) return []
+
+  const productsById = new Map(store.data.products.map((product) => [product.id, product]))
+  const sourceLinesById = new Map(store.data.sourceLines.map((line) => [line.id, line]))
+  const rows = new Map<
+    string,
+    { boxes: number; code: string; id: string; name: string; units: number }
+  >()
+
+  for (const allocation of store.data.allocationLines) {
+    if (allocation.transportPlaceId !== transportPlaceId || allocation.quantity <= 0) continue
+
+    const sourceLine = sourceLinesById.get(allocation.sourceLineId)
+    const product = sourceLine ? productsById.get(sourceLine.productId) : undefined
+    if (!product) continue
+
+    const row = rows.get(product.id) ?? {
+      boxes: 0,
+      code: product.code,
+      id: product.id,
+      name: product.name,
+      units: 0,
+    }
+    row.units += allocation.quantity
+    row.boxes += allocation.quantity / product.unitsPerBox
+    rows.set(product.id, row)
+  }
+
+  return [...rows.values()].sort((a, b) => a.code.localeCompare(b.code))
 }

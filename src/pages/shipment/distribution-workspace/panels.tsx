@@ -24,41 +24,10 @@ import {
   containerRows,
   number,
   productRows,
+  transportPlaceProductRows,
   transportPlaceRows,
 } from '@/pages/shipment/shared/format'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
-
-function DisabledModeSelect({
-  label,
-  options,
-  value,
-}: {
-  label: string
-  options: { label: string; value: string }[]
-  value: string
-}) {
-  const selectedLabel = options.find((option) => option.value === value)?.label
-
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="disabled-control mode-control" />}>
-        <Select disabled value={value}>
-          <SelectTrigger size="sm" aria-label={label}>
-            <SelectValue>{selectedLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </TooltipTrigger>
-      <TooltipContent>Переключение режима появится позже</TooltipContent>
-    </Tooltip>
-  )
-}
 
 function SourceModeSelect({ store }: { store: ShipmentStore }) {
   const selectedLabel = store.sourceDisplayMode === 'containers' ? 'Контейнеры' : 'Товары'
@@ -78,6 +47,42 @@ function SourceModeSelect({ store }: { store: ShipmentStore }) {
         <SelectItem value="products">Товары</SelectItem>
       </SelectContent>
     </Select>
+  )
+}
+
+function DestinationModeSelect({ store }: { store: ShipmentStore }) {
+  const isDisabled = !store.activeTransportPlaceId
+  const selectedLabel =
+    store.destinationDisplayMode === 'transport-places' ? 'Контейнеры ТМ' : 'Товары ТМ'
+  const select = (
+    <Select
+      disabled={isDisabled}
+      value={store.destinationDisplayMode}
+      onValueChange={(value) => {
+        if (value === 'transport-places' || value === 'transport-place-products') {
+          store.setDestinationDisplayMode(value)
+        }
+      }}
+    >
+      <SelectTrigger className="mode-control" size="sm" aria-label="Режим транспортных мест">
+        <SelectValue>{selectedLabel}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="transport-places">Контейнеры ТМ</SelectItem>
+        <SelectItem value="transport-place-products">Товары ТМ</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+
+  if (!isDisabled) return select
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="disabled-control mode-control" />}>
+        {select}
+      </TooltipTrigger>
+      <TooltipContent>Выберите транспортное место</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -109,6 +114,20 @@ function ProductTableHeader() {
     <TableHeader>
       <TableRow>
         {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров'].map((label) => (
+          <TableHead scope="col" key={label}>
+            {label}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
+  )
+}
+
+function TransportPlaceProductTableHeader() {
+  return (
+    <TableHeader>
+      <TableRow>
+        {['Код товара', 'Наименование', 'ШТ', 'Короба'].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
@@ -232,6 +251,9 @@ export const DestinationPanel = observer(function DestinationPanel({
   store: ShipmentStore
 }) {
   const rows = transportPlaceRows(store)
+  const productRowsList = transportPlaceProductRows(store)
+  const isProductMode = store.destinationDisplayMode === 'transport-place-products'
+  const rowCount = isProductMode ? productRowsList.length : rows.length
 
   return (
     <section className="work-panel" aria-labelledby="destination-title">
@@ -239,17 +261,13 @@ export const DestinationPanel = observer(function DestinationPanel({
         <div className="panel-title">
           <Layers aria-hidden="true" />
           <h2 id="destination-title">Транспортные места</h2>
+          <Badge variant="secondary" className="count">
+            {rowCount}
+          </Badge>
           <CreateTransportPlaceAction store={store} />
         </div>
         <div className="panel-toolbar">
-          <DisabledModeSelect
-            label="Режим транспортных мест"
-            value="transport-places"
-            options={[
-              { label: 'Контейнеры ТМ', value: 'transport-places' },
-              { label: 'Товары ТМ', value: 'transport-place-products' },
-            ]}
-          />
+          <DestinationModeSelect store={store} />
           <UnavailableButton variant="outline" size="sm">
             PAL
           </UnavailableButton>
@@ -259,57 +277,100 @@ export const DestinationPanel = observer(function DestinationPanel({
         </div>
       </header>
       <div className="table-scroll destination-scroll">
-        <Table aria-label="Транспортные места">
-          <ShipmentTableHeader destination />
-          <TableBody>
-            {rows.map((row) => {
-              const isActive = row.id === store.activeTransportPlaceId
+        {isProductMode ? (
+          productRowsList.length > 0 ? (
+            <Table aria-label="Товары активного транспортного места">
+              <TransportPlaceProductTableHeader />
+              <TableBody>
+                {productRowsList.map((row) => {
+                  const isSelected = row.id === store.selectedTransportPlaceProductId
 
-              return (
-                <TableRow
-                  aria-selected={isActive}
-                  className="transport-place-row"
-                  data-active={isActive}
-                  key={row.id}
-                  onClick={() => store.selectTransportPlace(row.id)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return
-                    event.preventDefault()
-                    store.selectTransportPlace(row.id)
-                  }}
-                  tabIndex={0}
-                >
-                  <TableCell>
-                    <span className="container-name">
-                      <Layers aria-hidden="true" />
-                      {row.name}
-                    </span>
-                  </TableCell>
-                  <TableCell>{row.sku}</TableCell>
-                  <TableCell>{number(row.units, 0)}</TableCell>
-                  <TableCell>{number(row.boxes)}</TableCell>
-                  <TableCell>{number(row.volume, 4)}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-        {rows.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <Layers aria-hidden="true" />
+                  return (
+                    <TableRow
+                      aria-selected={isSelected}
+                      className="transport-place-product-row"
+                      data-active={isSelected}
+                      key={row.id}
+                      onClick={() => store.selectTransportPlaceProduct(row.id)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        store.selectTransportPlaceProduct(row.id)
+                      }}
+                      tabIndex={0}
+                    >
+                      <TableCell>{row.code}</TableCell>
+                      <TableCell>{row.name}</TableCell>
+                      <TableCell>{number(row.units, 0)}</TableCell>
+                      <TableCell>{number(row.boxes)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">
+                <Box aria-hidden="true" />
+              </div>
+              <h3>В транспортном месте нет товаров</h3>
             </div>
-            <h3>
-              Транспортные места
-              <br />
-              ещё не созданы
-            </h3>
-            <p>
-              Здесь появятся места
-              <br />
-              для упаковки товаров заказа
-            </p>
-          </div>
+          )
+        ) : (
+          <>
+            <Table aria-label="Транспортные места">
+              <ShipmentTableHeader destination />
+              <TableBody>
+                {rows.map((row) => {
+                  const isActive = row.id === store.activeTransportPlaceId
+
+                  return (
+                    <TableRow
+                      aria-selected={isActive}
+                      className="transport-place-row"
+                      data-active={isActive}
+                      key={row.id}
+                      onClick={() => store.selectTransportPlace(row.id)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        store.selectTransportPlace(row.id)
+                      }}
+                      tabIndex={0}
+                    >
+                      <TableCell>
+                        <span className="container-name">
+                          <Layers aria-hidden="true" />
+                          {row.name}
+                        </span>
+                      </TableCell>
+                      <TableCell>{row.sku}</TableCell>
+                      <TableCell>{number(row.units, 0)}</TableCell>
+                      <TableCell>{number(row.boxes)}</TableCell>
+                      <TableCell>{number(row.volume, 4)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+            {rows.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <Layers aria-hidden="true" />
+                </div>
+                <h3>
+                  Транспортные места
+                  <br />
+                  ещё не созданы
+                </h3>
+                <p>
+                  Здесь появятся места
+                  <br />
+                  для упаковки товаров заказа
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
@@ -329,8 +390,15 @@ export const TransferActions = observer(function TransferActions({
       <Button
         variant="outline"
         className="transfer-button"
-        disabled={!store.canDistributeSelectedContainer}
-        onClick={() => store.distributeSelectedContainer()}
+        disabled={
+          store.sourceDisplayMode === 'containers'
+            ? !store.canDistributeSelectedContainer
+            : !store.canDistributeSelectedProduct
+        }
+        onClick={() => {
+          if (store.sourceDisplayMode === 'containers') store.distributeSelectedContainer()
+          else store.distributeSelectedProduct()
+        }}
       >
         <ArrowRight />
         <span>Переместить строку</span>
@@ -344,8 +412,18 @@ export const TransferActions = observer(function TransferActions({
       <Button
         variant="outline"
         className="transfer-button return-action"
-        disabled={!store.canReturnActiveTransportPlaceContents}
-        onClick={() => store.returnActiveTransportPlaceContents()}
+        disabled={
+          store.destinationDisplayMode === 'transport-places'
+            ? !store.canReturnActiveTransportPlaceContents
+            : !store.canReturnSelectedTransportPlaceProduct
+        }
+        onClick={() => {
+          if (store.destinationDisplayMode === 'transport-places') {
+            store.returnActiveTransportPlaceContents()
+          } else {
+            store.returnSelectedTransportPlaceProduct()
+          }
+        }}
       >
         <ArrowLeft />
         <span>Вернуть строку</span>

@@ -80,6 +80,7 @@ function ShipmentTableHeader({ destination = false }: { destination?: boolean })
 
 export const SourcePanel = observer(function SourcePanel({ store }: { store: ShipmentStore }) {
   const rows = containerRows(store)
+  const selectedRow = rows.find((row) => row.id === store.selectedContainerId)
   return (
     <section className="work-panel" aria-labelledby="source-title">
       <header className="panel-header">
@@ -99,7 +100,7 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
               { label: 'Товары', value: 'products' },
             ]}
           />
-          <span>Контейнер: —</span>
+          <span>Контейнер: {selectedRow?.name ?? '—'}</span>
           <span>Товар: —</span>
         </div>
       </header>
@@ -107,20 +108,36 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
         <Table aria-label="Контейнеры отбора">
           <ShipmentTableHeader />
           <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <span className="container-name">
-                    <Box aria-hidden="true" />
-                    {row.name}
-                  </span>
-                </TableCell>
-                <TableCell>{row.sku}</TableCell>
-                <TableCell>{number(row.units, 0)}</TableCell>
-                <TableCell>{number(row.boxes)}</TableCell>
-                <TableCell>{number(row.volume, 4)}</TableCell>
-              </TableRow>
-            ))}
+            {rows.map((row) => {
+              const isSelected = row.id === store.selectedContainerId
+
+              return (
+                <TableRow
+                  aria-selected={isSelected}
+                  className="source-container-row"
+                  data-active={isSelected}
+                  key={row.id}
+                  onClick={() => store.selectContainer(row.id)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    store.selectContainer(row.id)
+                  }}
+                  tabIndex={0}
+                >
+                  <TableCell>
+                    <span className="container-name">
+                      <Box aria-hidden="true" />
+                      {row.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>{row.sku}</TableCell>
+                  <TableCell>{number(row.units, 0)}</TableCell>
+                  <TableCell>{number(row.boxes)}</TableCell>
+                  <TableCell>{number(row.volume, 4)}</TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
@@ -218,27 +235,41 @@ export const DestinationPanel = observer(function DestinationPanel({
   )
 })
 
-export function TransferActions() {
+export const TransferActions = observer(function TransferActions({
+  store,
+}: {
+  store: ShipmentStore
+}) {
+  const unavailableActions = [
+    { direction: 'forward', label: 'Переместить всё по фильтру' },
+    { direction: 'forward', label: 'Переместить количество' },
+    { direction: 'return', label: 'Вернуть строку' },
+    { direction: 'return', label: 'Вернуть всё по фильтру' },
+  ] as const
+
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
       <span className="eyebrow">ПЕРЕМЕЩЕНИЕ</span>
-      {[
-        'Переместить строку',
-        'Переместить всё по фильтру',
-        'Переместить количество',
-        'Вернуть строку',
-        'Вернуть всё по фильтру',
-      ].map((label, index) => (
+      <Button
+        variant="outline"
+        className="transfer-button"
+        disabled={!store.canDistributeSelectedContainer}
+        onClick={() => store.distributeSelectedContainer()}
+      >
+        <ArrowRight />
+        <span>Переместить строку</span>
+      </Button>
+      {unavailableActions.map(({ direction, label }) => (
         <UnavailableButton
           variant="outline"
           className="transfer-button"
-          triggerClassName={index === 3 ? 'return-action' : undefined}
+          triggerClassName={label === 'Вернуть строку' ? 'return-action' : undefined}
           key={label}
         >
-          {index < 3 ? <ArrowRight /> : <ArrowLeft />}
+          {direction === 'forward' ? <ArrowRight /> : <ArrowLeft />}
           <span>{label}</span>
         </UnavailableButton>
       ))}
     </aside>
   )
-}
+})

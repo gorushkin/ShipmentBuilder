@@ -302,18 +302,22 @@
   display: grid;
   grid-template-rows: auto minmax(200px, 1fr);
 }
+.source-container-row,
 .transport-place-row {
   cursor: pointer;
   outline: none;
 }
+.source-container-row[data-active='true'],
 .transport-place-row[data-active='true'] {
   background: #edf3ff;
   box-shadow: inset 3px 0 #245ad5;
 }
+.source-container-row:focus-visible,
 .transport-place-row:focus-visible {
   outline: 2px solid #245ad5;
   outline-offset: -2px;
 }
+.source-container-row[data-active='true']:hover,
 .transport-place-row[data-active='true']:hover {
   background: #e7efff;
 }

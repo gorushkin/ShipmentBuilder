@@ -2,6 +2,7 @@ import { makeAutoObservable } from 'mobx'
 
 import { createDemoData } from './demo-data'
 import type {
+  AllocationLine,
   Product,
   RemainingLine,
   ShipmentData,
@@ -47,6 +48,7 @@ function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTota
 export class ShipmentStore {
   activeTransportPlaceId: null | string = null
   data: ShipmentData
+  selectedContainerId: null | string = null
 
   constructor(data: ShipmentData = createDemoData()) {
     // Копируем и вложенные массивы, чтобы экземпляры не делили данные.
@@ -91,6 +93,92 @@ export class ShipmentStore {
     }
 
     this.activeTransportPlaceId = transportPlaceId
+  }
+
+  selectContainer(containerId: string): void {
+    if (!this.data.containers.some((container) => container.id === containerId)) {
+      throw new Error(`Контейнер ${containerId} отсутствует`)
+    }
+
+    if (
+      !this.remainingLines.some(
+        (line) => line.containerId === containerId && line.remainingQuantity > 0,
+      )
+    ) {
+      throw new Error(`В контейнере ${containerId} нет остатка к распределению`)
+    }
+
+    this.selectedContainerId = containerId
+  }
+
+  distributeSelectedContainer(): void {
+    const containerId = this.selectedContainerId
+    const transportPlaceId = this.activeTransportPlaceId
+
+    if (!containerId) {
+      throw new Error('Контейнер для распределения не выбран')
+    }
+    if (!this.data.containers.some((container) => container.id === containerId)) {
+      throw new Error(`Контейнер ${containerId} отсутствует`)
+    }
+    if (!transportPlaceId) {
+      throw new Error('Активное транспортное место не выбрано')
+    }
+    if (!this.data.transportPlaces.some((place) => place.id === transportPlaceId)) {
+      throw new Error(`Транспортное место ${transportPlaceId} отсутствует`)
+    }
+
+    const linesToDistribute = this.remainingLines.filter(
+      (line) => line.containerId === containerId && line.remainingQuantity > 0,
+    )
+    if (linesToDistribute.length === 0) {
+      throw new Error(`В контейнере ${containerId} нет остатка к распределению`)
+    }
+
+    const occupiedIds = new Set(this.data.allocationLines.map((line) => line.id))
+    const newAllocations: AllocationLine[] = []
+
+    for (const sourceLine of linesToDistribute) {
+      const existingAllocation = this.data.allocationLines.find(
+        (line) => line.sourceLineId === sourceLine.id && line.transportPlaceId === transportPlaceId,
+      )
+      if (existingAllocation) {
+        existingAllocation.quantity += sourceLine.remainingQuantity
+        continue
+      }
+
+      const idBase = `${transportPlaceId}-${sourceLine.id}-allocation`
+      let id = idBase
+      let suffix = 2
+      while (occupiedIds.has(id)) {
+        id = `${idBase}-${suffix}`
+        suffix += 1
+      }
+      occupiedIds.add(id)
+      newAllocations.push({
+        id,
+        quantity: sourceLine.remainingQuantity,
+        sourceLineId: sourceLine.id,
+        transportPlaceId,
+      })
+    }
+
+    this.data.allocationLines.push(...newAllocations)
+    this.selectedContainerId = null
+  }
+
+  get canDistributeSelectedContainer(): boolean {
+    if (!this.selectedContainerId || !this.activeTransportPlaceId) return false
+    if (!this.data.containers.some((container) => container.id === this.selectedContainerId)) {
+      return false
+    }
+    if (!this.data.transportPlaces.some((place) => place.id === this.activeTransportPlaceId)) {
+      return false
+    }
+
+    return this.remainingLines.some(
+      (line) => line.containerId === this.selectedContainerId && line.remainingQuantity > 0,
+    )
   }
 
   get orderTotals(): ShipmentTotals {

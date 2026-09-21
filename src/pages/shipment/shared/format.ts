@@ -21,6 +21,7 @@ export function containerRows(store: ShipmentStore) {
       }
       return { boxes, id: container.id, name: container.barcode, sku: products.size, units, volume }
     })
+    .filter((row) => row.units > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 

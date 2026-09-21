@@ -6,7 +6,7 @@ export function DistributionWorkspace({ store }: { store: ShipmentStore }) {
   return (
     <div className="workspace">
       <SourcePanel store={store} />
-      <TransferActions />
+      <TransferActions store={store} />
       <DestinationPanel store={store} />
     </div>
   )

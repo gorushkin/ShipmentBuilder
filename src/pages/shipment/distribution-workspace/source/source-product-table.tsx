@@ -25,7 +25,15 @@ function ProductTableHeader() {
   )
 }
 
-export function SourceProductTable({ rows }: { rows: SourceProductTableRow[] }) {
+export function SourceProductTable({
+  onSelect,
+  rows,
+  selectedProductId,
+}: {
+  onSelect: (productId: string) => void
+  rows: SourceProductTableRow[]
+  selectedProductId: null | string
+}) {
   if (rows.length === 0) {
     return (
       <div className="empty-state source-empty-state">
@@ -42,7 +50,20 @@ export function SourceProductTable({ rows }: { rows: SourceProductTableRow[] }) 
       <ProductTableHeader />
       <TableBody>
         {rows.map((row) => (
-          <TableRow className="source-product-row" key={row.id}>
+          <TableRow
+            aria-selected={selectedProductId === row.id}
+            className="source-product-row"
+            data-active={selectedProductId === row.id}
+            key={row.id}
+            onClick={() => onSelect(row.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onSelect(row.id)
+              }
+            }}
+            tabIndex={0}
+          >
             <TableCell>{row.code}</TableCell>
             <TableCell>{row.name}</TableCell>
             <TableCell>{number(row.units, 0)}</TableCell>

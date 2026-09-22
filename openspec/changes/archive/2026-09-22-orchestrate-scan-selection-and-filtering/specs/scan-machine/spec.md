@@ -1,11 +1,4 @@
-# Scan Machine
-
-## Purpose
-
-Определяет сценарные состояния, контекст выбора и намерения сканерного процесса без
-исполнения доменных операций.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Typed scanner state and context
 
@@ -109,6 +102,8 @@
 - **WHEN** пользователь повторно кликает уже выбранную строку
 - **THEN** machine selection остаётся прежним
 - **AND** transfer intent не публикуется
+
+## ADDED Requirements
 
 ### Requirement: Selection validation recovery
 

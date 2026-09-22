@@ -223,6 +223,14 @@
   width: 100%;
   max-width: 132px;
 }
+.source-filter-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #365487;
+  font-size: 11px;
+}
 .panel-toolbar [data-slot='select-trigger'] {
   width: 100%;
   border: 1px solid #e0e5ed;

@@ -5,10 +5,10 @@ import type { ResolvedScanEvent } from './scan-machine'
 export type BarcodeResolution = { event: ResolvedScanEvent; kind: 'resolved' } | { kind: 'unknown' }
 
 export class BarcodeResolver {
-  private readonly data: ShipmentData
+  private readonly getData: () => null | ShipmentData
 
-  constructor(data: ShipmentData) {
-    this.data = data
+  constructor(data: ShipmentData | (() => null | ShipmentData)) {
+    this.getData = typeof data === 'function' ? data : () => data
   }
 
   resolve(rawValue: string): BarcodeResolution {
@@ -17,19 +17,20 @@ export class BarcodeResolver {
       return { event: { command: 'transfer-quantity', type: 'command-scanned' }, kind: 'resolved' }
     }
 
-    const container = this.data.containers.find(
-      (item) => item.scanBarcode.toUpperCase() === barcode,
-    )
+    const data = this.getData()
+    if (!data) return { kind: 'unknown' }
+
+    const container = data.containers.find((item) => item.scanBarcode.toUpperCase() === barcode)
     if (container) {
       return { event: { containerId: container.id, type: 'container-scanned' }, kind: 'resolved' }
     }
 
-    const product = this.data.products.find((item) => item.scanBarcode.toUpperCase() === barcode)
+    const product = data.products.find((item) => item.scanBarcode.toUpperCase() === barcode)
     if (product) {
       return { event: { productId: product.id, type: 'product-scanned' }, kind: 'resolved' }
     }
 
-    const transportPlace = this.data.transportPlaces.find(
+    const transportPlace = data.transportPlaces.find(
       (item) => item.scanBarcode.toUpperCase() === barcode,
     )
     if (transportPlace) {

@@ -1,24 +1,26 @@
 import { BarcodeResolver } from './barcode-resolver'
-import { ScanMachine } from './scan-machine'
+import type { ResolvedScanEvent } from './scan-machine'
+
+interface ScanReceiver {
+  barcodeUnknown(): void
+  send(event: ResolvedScanEvent): void
+}
 
 export class BarcodeInputAdapter {
   private readonly resolver: BarcodeResolver
-  private readonly scanMachine: ScanMachine
+  private readonly receiver: ScanReceiver
 
-  constructor(
-    resolver: BarcodeResolver,
-    scanMachine: ScanMachine,
-  ) {
+  constructor(resolver: BarcodeResolver, receiver: ScanReceiver) {
     this.resolver = resolver
-    this.scanMachine = scanMachine
+    this.receiver = receiver
   }
 
   submit(rawValue: string): void {
     const resolution = this.resolver.resolve(rawValue)
     if (resolution.kind === 'unknown') {
-      this.scanMachine.barcodeUnknown()
+      this.receiver.barcodeUnknown()
       return
     }
-    this.scanMachine.send(resolution.event)
+    this.receiver.send(resolution.event)
   }
 }

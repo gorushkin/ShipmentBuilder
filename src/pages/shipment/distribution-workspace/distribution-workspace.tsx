@@ -1,20 +1,13 @@
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
-import type { ScanMachine } from '@/features/scan-machine'
 
 import { DestinationPanel, SourcePanel, TransferActions } from './panels'
 
-export function DistributionWorkspace({
-  scanMachine,
-  store,
-}: {
-  scanMachine: ScanMachine
-  store: ShipmentStore
-}) {
+export function DistributionWorkspace({ store }: { store: ShipmentStore }) {
   return (
     <div className="workspace">
       <SourcePanel />
       <TransferActions store={store} />
-      <DestinationPanel scanMachine={scanMachine} store={store} />
+      <DestinationPanel store={store} />
     </div>
   )
 }

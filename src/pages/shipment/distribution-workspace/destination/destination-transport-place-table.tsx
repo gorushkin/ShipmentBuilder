@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { DestinationTransportPlaceTableRow } from '@/features/scanner-workflow'
+import { scannerWorkflowOrchestrator } from '@/features/scanner-workflow'
 import { number } from '@/pages/shipment/shared/format'
 
 function ShipmentTableHeader() {
@@ -41,6 +42,14 @@ export function DestinationTransportPlaceTable({
               className="transport-place-row"
               data-active={row.isActive}
               key={row.id}
+              onClick={() => scannerWorkflowOrchestrator.selectTransportPlace(row.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  scannerWorkflowOrchestrator.selectTransportPlace(row.id)
+                }
+              }}
+              tabIndex={0}
             >
               <TableCell>
                 <span className="container-name">

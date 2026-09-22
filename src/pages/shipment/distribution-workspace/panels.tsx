@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
-import type { ScanMachine } from '@/features/scan-machine'
 import {
   scannerWorkflowOrchestrator,
   type DestinationTableMode,
@@ -82,19 +81,13 @@ function DestinationModeSelect({
   )
 }
 
-function CreateTransportPlaceAction({
-  scanMachine,
-  store,
-}: {
-  scanMachine: ScanMachine
-  store: ShipmentStore
-}) {
+function CreateTransportPlaceAction({ store }: { store: ShipmentStore }) {
   return (
     <Button
+      disabled={!scannerWorkflowOrchestrator.hasSnapshot}
       size="sm"
       onClick={() => {
-        const transportPlace = store.createTransportPlace()
-        scanMachine.mouseTransportPlaceSelected(transportPlace.id)
+        if (scannerWorkflowOrchestrator.createTransportPlace()) store.createTransportPlace()
       }}
     >
       <Plus />
@@ -104,16 +97,26 @@ function CreateTransportPlaceAction({
 }
 
 export const SourcePanel = observer(function SourcePanel() {
-  const [mode, setMode] = useState<SourceTableMode>('containers')
+  const mode = scannerWorkflowOrchestrator.sourceMode
+  const sourceFilter = scannerWorkflowOrchestrator.sourceFilter
+  const selectedSource = scannerWorkflowOrchestrator.selectedSource
   const rowCount =
     mode === 'products'
       ? scannerWorkflowOrchestrator.getSourceRows('products').length
       : scannerWorkflowOrchestrator.getSourceRows('containers').length
   const sourceTable =
     mode === 'products' ? (
-      <SourceProductTable rows={scannerWorkflowOrchestrator.getSourceRows('products')} />
+      <SourceProductTable
+        rows={scannerWorkflowOrchestrator.getSourceRows('products')}
+        selectedProductId={selectedSource?.kind === 'product' ? selectedSource.productId : null}
+        onSelect={scannerWorkflowOrchestrator.selectProduct.bind(scannerWorkflowOrchestrator)}
+      />
     ) : (
-      <SourceContainerTable rows={scannerWorkflowOrchestrator.getSourceRows('containers')} />
+      <SourceContainerTable
+        rows={scannerWorkflowOrchestrator.getSourceRows('containers')}
+        selectedContainerId={sourceFilter?.type === 'container' ? sourceFilter.containerId : null}
+        onSelect={scannerWorkflowOrchestrator.selectContainer.bind(scannerWorkflowOrchestrator)}
+      />
     )
 
   return (
@@ -127,8 +130,29 @@ export const SourcePanel = observer(function SourcePanel() {
           </Badge>
         </div>
         <div className="panel-toolbar">
-          <SourceModeSelect mode={mode} onModeChange={setMode} />
+          <SourceModeSelect
+            mode={mode}
+            onModeChange={scannerWorkflowOrchestrator.setSourceMode.bind(
+              scannerWorkflowOrchestrator,
+            )}
+          />
         </div>
+        {sourceFilter && (
+          <div className="source-filter-indicator">
+            <span>
+              {sourceFilter.type === 'container' ? 'Контейнер' : 'Товар'}:{' '}
+              {scannerWorkflowOrchestrator.sourceFilterLabel}
+            </span>
+            <Button
+              onClick={() => scannerWorkflowOrchestrator.clearSourceFilter()}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Сбросить
+            </Button>
+          </div>
+        )}
       </header>
       <div className="table-scroll">{sourceTable}</div>
     </section>
@@ -136,10 +160,8 @@ export const SourcePanel = observer(function SourcePanel() {
 })
 
 export const DestinationPanel = observer(function DestinationPanel({
-  scanMachine,
   store,
 }: {
-  scanMachine: ScanMachine
   store: ShipmentStore
 }) {
   const [mode, setMode] = useState<DestinationTableMode>('transport-places')
@@ -166,7 +188,7 @@ export const DestinationPanel = observer(function DestinationPanel({
           <Badge variant="secondary" className="count">
             {rowCount}
           </Badge>
-          <CreateTransportPlaceAction scanMachine={scanMachine} store={store} />
+          <CreateTransportPlaceAction store={store} />
         </div>
         <div className="panel-toolbar">
           <DestinationModeSelect mode={mode} onModeChange={setMode} />

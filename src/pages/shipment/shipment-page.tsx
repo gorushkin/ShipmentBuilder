@@ -34,7 +34,7 @@ export const ShipmentPage = observer(function ShipmentPage() {
       />
       <OrderSummary store={store} />
       <DistributionStatus />
-      <DistributionWorkspace scanMachine={scanMachine} store={store} />
+      <DistributionWorkspace store={store} />
       <RemainingSummary store={store} />
     </main>
   )

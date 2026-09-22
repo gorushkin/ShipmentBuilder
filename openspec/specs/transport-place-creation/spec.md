@@ -45,23 +45,24 @@
 
 ### Requirement: Active transport place
 
-`ShipmentStore` SHALL retain its ID-based active transport-place state and
-creation command behavior for legacy controls. The new data-backed transport
-place table SHALL NOT change the active transport place on row click; clicks
-SHALL be inert or emit a technical log only. The new table projection SHALL
-include whether a row matches `ShipmentDataStore.activeTransportPlaceId`, so an
-active item can be rendered distinctly when one exists.
+`ShipmentStore` SHALL retain its ID-based active transport-place state and creation command behavior for legacy controls. In the new data-backed workflow, clicking a transport-place row or scanning its barcode SHALL update active transport place through `ScanMachine`; `ScannerWorkflowOrchestrator` SHALL validate and apply that ID to `ShipmentDataStore`. Selection SHALL preserve source filter, selected source entity and both table display modes. Active transport-place selection SHALL NOT distribute, return, or otherwise change allocations.
 
 #### Scenario: Created place becomes active
 
-- **WHEN** пользователь создаёт новое транспортное место
-- **THEN** `activeTransportPlaceId` равен ID созданного места
+- **WHEN** пользователь creates a new transport place through a legacy control
+- **THEN** legacy `activeTransportPlaceId` equals the ID of the created place
 
-#### Scenario: Click a transport place table row
+#### Scenario: Select an existing transport place by mouse or scanner
 
-- **WHEN** the user clicks or activates a transport-place row in the new table
-- **THEN** the row remains a data display only or emits a technical log containing its entity type and ID
-- **AND** active transport place, allocations and scanner state remain unchanged
+- **WHEN** the user clicks a visible transport-place row or scans its barcode
+- **THEN** machine and `ShipmentDataStore` identify that place as active
+- **AND** source context and allocations remain unchanged
+
+#### Scenario: Unknown transport place preserves the active selection
+
+- **WHEN** a resolved transport-place ID is absent from `ShipmentDataStore`
+- **THEN** the orchestrator reports a typed selection error
+- **AND** the previous active transport place and source context remain unchanged
 
 ### Requirement: Created transport places presentation
 

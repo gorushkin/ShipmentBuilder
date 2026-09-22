@@ -3,90 +3,91 @@ import { describe, expect, it } from 'vitest'
 import { ScanMachine } from './scan-machine'
 
 describe('ScanMachine', () => {
-  it('selects a container then starts one pending container transfer on the repeated scan', () => {
+  it('keeps a container selected and emits a new intent for each repeated scan', () => {
     const machine = new ScanMachine()
-
     machine.send({ containerId: 'C1', type: 'container-scanned' })
     expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
+    expect(machine.source).toEqual({ containerId: 'C1', kind: 'container' })
+    expect(machine.lastIntent).toBeNull()
 
     machine.send({ containerId: 'C1', type: 'container-scanned' })
-    expect(machine.step).toEqual({
+    expect(machine.lastIntent).toEqual({
       containerId: 'C1',
-      effectId: 'scan-effect-1',
-      kind: 'transferring-container',
-    })
-    expect(machine.pendingEffect).toEqual({
-      containerId: 'C1',
-      id: 'scan-effect-1',
+      id: 'scan-intent-1',
       kind: 'transfer-container',
     })
-    expect(machine.feedback.message).toBe('Обработка…')
-
-    machine.send({ productId: 'P1', type: 'product-scanned' })
-    expect(machine.pendingEffect?.id).toBe('scan-effect-1')
+    machine.send({ containerId: 'C1', type: 'container-scanned' })
+    expect(machine.lastIntent?.id).toBe('scan-intent-2')
+    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
+    expect(machine.pendingEffect).toBeNull()
+    expect(machine.isTransferring).toBe(false)
   })
 
-  it('creates a product-from-container effect and restores its context after an error', () => {
+  it('preserves container context when selecting its product by scanner or mouse', () => {
     const machine = new ScanMachine()
     machine.mouseContainerSelected('C1')
-
     machine.send({ productId: 'P1', type: 'product-scanned' })
-    expect(machine.pendingEffect).toMatchObject({
+
+    expect(machine.step).toEqual({ containerId: 'C1', kind: 'product-selected', productId: 'P1' })
+    expect(machine.selectedSource).toEqual({ containerId: 'C1', kind: 'product', productId: 'P1' })
+    expect(machine.source).toEqual({ containerId: 'C1', kind: 'container' })
+    expect(machine.lastIntent).toMatchObject({
       containerId: 'C1',
       kind: 'transfer-product-from-container',
       productId: 'P1',
     })
 
-    machine.send({
-      code: 'product-not-in-container',
-      effectId: 'scan-effect-1',
-      type: 'operation-failed',
-    })
-    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
-    expect(machine.feedback.message).toBe('Товар отсутствует в выбранном контейнере')
+    const mouse = new ScanMachine()
+    mouse.mouseContainerSelected('C1')
+    mouse.mouseProductSelected('P1')
+    expect(mouse.selectedSource).toEqual(machine.selectedSource)
+    expect(mouse.source).toEqual(machine.source)
+    expect(mouse.lastIntent).toBeNull()
   })
 
-  it('selects a product, preserves it while selecting a transport place, and transfers its next line', () => {
+  it('selects a product across containers, preserves it after transport-place selection, and logs repeats', () => {
     const machine = new ScanMachine()
     machine.send({ productId: 'P1', type: 'product-scanned' })
     machine.send({ transportPlaceId: 'TM1', type: 'transport-place-scanned' })
-
     expect(machine.activeTransportPlaceId).toBe('TM1')
-    expect(machine.step).toEqual({ kind: 'product-selected', productId: 'P1' })
+    expect(machine.source).toEqual({ kind: 'product', productId: 'P1' })
 
     machine.send({ productId: 'P1', type: 'product-scanned' })
-    expect(machine.pendingEffect).toMatchObject({
+    expect(machine.lastIntent).toEqual({
+      id: 'scan-intent-1',
       kind: 'transfer-next-product-line',
       productId: 'P1',
     })
-
-    machine.send({
-      effectId: 'scan-effect-1',
-      result: 'product-exhausted',
-      type: 'operation-succeeded',
-    })
-    expect(machine.step).toEqual({ kind: 'ready' })
+    machine.mouseProductSelected('P1')
+    expect(machine.lastIntent?.id).toBe('scan-intent-1')
+    expect(machine.pendingEffect).toBeNull()
   })
 
-  it('opens quantity entry only for a selected product and validates its quantity', () => {
+  it('records quantity command only when a product is selected, without entering quantity workflow', () => {
     const machine = new ScanMachine()
-    machine.mouseContainerSelected('C1')
     machine.send({ command: 'transfer-quantity', type: 'command-scanned' })
-    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
     expect(machine.feedback.message).toBe('Товар для перемещения количества не выбран')
-
     machine.mouseProductSelected('P1')
     machine.send({ command: 'transfer-quantity', type: 'command-scanned' })
-    expect(machine.step).toEqual({ kind: 'awaiting-quantity', productId: 'P1' })
-
-    machine.send({ quantity: 0, type: 'quantity-confirmed' })
-    expect(machine.feedback.message).toBe('Укажите допустимое количество')
-
-    machine.send({ quantity: 3, type: 'quantity-confirmed' })
-    expect(machine.pendingEffect).toMatchObject({
+    expect(machine.step).toEqual({ kind: 'product-selected', productId: 'P1' })
+    expect(machine.lastIntent).toEqual({
+      containerId: undefined,
+      id: 'scan-intent-1',
       kind: 'transfer-quantity',
       productId: 'P1',
-      quantity: 3,
     })
+    expect(machine.pendingEffect).toBeNull()
+  })
+
+  it('keeps valid context after a selection rejection and clears source only on explicit action', () => {
+    const machine = new ScanMachine()
+    machine.mouseContainerSelected('C1')
+    machine.send({ code: 'product-not-in-container', type: 'selection-rejected' })
+    expect(machine.source).toEqual({ containerId: 'C1', kind: 'container' })
+    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
+    expect(machine.feedback.message).toBe('Товар отсутствует в выбранном контейнере')
+    machine.mouseFilterCleared()
+    expect(machine.source).toEqual({ kind: 'none' })
+    expect(machine.activeTransportPlaceId).toBeNull()
   })
 })

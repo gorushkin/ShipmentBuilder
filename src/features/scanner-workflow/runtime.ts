@@ -21,6 +21,6 @@ export const scannerWorkflowOrchestrator = new ScannerWorkflowOrchestrator(
   () => Promise.resolve(shipmentDemoData),
 )
 export const barcodeInputAdapter = new BarcodeInputAdapter(
-  new BarcodeResolver(shipmentDemoData),
-  scanMachine,
+  new BarcodeResolver(() => shipmentDataStore.data),
+  scannerWorkflowOrchestrator,
 )

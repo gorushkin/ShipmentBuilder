@@ -1,10 +1,4 @@
-# Source Filters
-
-## Purpose
-
-Определяет контекстную фильтрацию левой области по контейнеру или товару и перенос отображаемого остатка исходной строки.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Mutually exclusive source filters
 

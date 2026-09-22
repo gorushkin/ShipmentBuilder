@@ -25,13 +25,34 @@ function ShipmentTableHeader() {
   )
 }
 
-export function SourceContainerTable({ rows }: { rows: SourceContainerTableRow[] }) {
+export function SourceContainerTable({
+  onSelect,
+  rows,
+  selectedContainerId,
+}: {
+  onSelect: (containerId: string) => void
+  rows: SourceContainerTableRow[]
+  selectedContainerId: null | string
+}) {
   return (
     <Table aria-label="Контейнеры отбора">
       <ShipmentTableHeader />
       <TableBody>
         {rows.map((row) => (
-          <TableRow className="source-container-row" key={row.id}>
+          <TableRow
+            aria-selected={selectedContainerId === row.id}
+            className="source-container-row"
+            data-active={selectedContainerId === row.id}
+            key={row.id}
+            onClick={() => onSelect(row.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onSelect(row.id)
+              }
+            }}
+            tabIndex={0}
+          >
             <TableCell>
               <span className="container-name">
                 <Box aria-hidden="true" />

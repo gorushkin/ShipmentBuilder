@@ -1,0 +1,55 @@
+.barcode-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 6px 10px;
+  border: 1px solid #dbe3f1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.barcode-input__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #357458;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.barcode-input__status svg,
+.barcode-input button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.barcode-input__form {
+  min-width: 0;
+  flex: 1;
+}
+
+.barcode-input__field--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.barcode-input button {
+  font-size: 11px;
+}
+
+.barcode-input kbd {
+  padding: 1px 4px;
+  border: 1px solid #dbe3f1;
+  border-radius: 3px;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 650;
+}

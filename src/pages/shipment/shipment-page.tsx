@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { observer } from 'mobx-react-lite'
+
 import { createDemoData, createLargeDemoData } from '@/domain/shipment/demo-data'
 import { ShipmentStore } from '@/domain/shipment/shipment-store'
 import { BarcodeInput } from '@/features/barcode-input'
@@ -12,7 +14,7 @@ import { RemainingSummary } from './remaining-summary'
 import { ShipmentHeader } from './shipment-header'
 import './shipment.css'
 
-export function ShipmentPage() {
+export const ShipmentPage = observer(function ShipmentPage() {
   const [data] = useState(() =>
     new URLSearchParams(window.location.search).get('scenario') === 'large'
       ? createLargeDemoData()
@@ -29,7 +31,8 @@ export function ShipmentPage() {
     <main className="shipment-page">
       <ShipmentHeader />
       <BarcodeInput
-        machine={scanMachine}
+        feedback={scanMachine.feedback.message}
+        isProcessing={scanMachine.isTransferring}
         onCompleted={(value) => barcodeInputAdapter.submit(value)}
       />
       <OrderSummary store={store} />
@@ -38,4 +41,4 @@ export function ShipmentPage() {
       <RemainingSummary store={store} />
     </main>
   )
-}
+})

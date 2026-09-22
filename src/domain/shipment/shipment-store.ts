@@ -16,6 +16,11 @@ export type DestinationDisplayMode = 'transport-places' | 'transport-place-produ
 export type SourceFilter =
   { containerId: string; type: 'container' } | { productId: string; type: 'product' }
 
+export interface PartialQuantityContext {
+  maximum: number
+  product: Product
+}
+
 function calculateTotals(lines: SourceLine[], products: Product[]): ShipmentTotals {
   const productsById = new Map(products.map((product) => [product.id, product]))
   const containerIds = new Set<string>()
@@ -312,17 +317,64 @@ export class ShipmentStore {
     )
   }
 
+  get partialDistributionContext(): null | PartialQuantityContext {
+    if (this.sourceFilter) {
+      const line = this.filteredRemainingLines.find((line) => line.id === this.selectedSourceLineId)
+      const product = line
+        ? this.data.products.find((product) => product.id === line.productId)
+        : undefined
+      return line && product && line.remainingQuantity > 0
+        ? { maximum: line.remainingQuantity, product }
+        : null
+    }
+
+    if (this.sourceDisplayMode !== 'products' || !this.selectedProductId) return null
+    const product = this.data.products.find((product) => product.id === this.selectedProductId)
+    const maximum = this.remainingLines
+      .filter((line) => line.productId === this.selectedProductId)
+      .reduce((total, line) => total + line.remainingQuantity, 0)
+    return product && maximum > 0 ? { maximum, product } : null
+  }
+
+  distributeSelectedProductQuantity(quantity: number): void {
+    const context = this.partialDistributionContext
+    if (!context) throw new Error('Товарная строка для частичного переноса не выбрана')
+    this.assertPartialQuantity(quantity, context.maximum)
+
+    const lines = this.sourceFilter
+      ? this.filteredRemainingLines.filter((line) => line.id === this.selectedSourceLineId)
+      : this.remainingLines.filter(
+          (line) => line.productId === context.product.id && line.remainingQuantity > 0,
+        )
+    this.allocateQuantityFromLines(lines, quantity)
+
+    if (this.sourceFilter) this.selectedSourceLineId = null
+    else this.selectedProductId = null
+  }
+
   private allocateRemainingLines(linesToDistribute: RemainingLine[]): void {
+    this.allocateQuantityFromLines(
+      linesToDistribute,
+      linesToDistribute.reduce((total, line) => total + line.remainingQuantity, 0),
+    )
+  }
+
+  private allocateQuantityFromLines(lines: RemainingLine[], quantity: number): void {
     const transportPlaceId = this.ensureActiveTransportPlace()
     const occupiedIds = new Set(this.data.allocationLines.map((line) => line.id))
     const newAllocations: AllocationLine[] = []
+    let remainingQuantity = quantity
 
-    for (const sourceLine of linesToDistribute) {
+    for (const sourceLine of lines) {
+      if (remainingQuantity <= 0) break
+      const quantityToAllocate = Math.min(sourceLine.remainingQuantity, remainingQuantity)
+      if (quantityToAllocate <= 0) continue
       const existingAllocation = this.data.allocationLines.find(
         (line) => line.sourceLineId === sourceLine.id && line.transportPlaceId === transportPlaceId,
       )
       if (existingAllocation) {
-        existingAllocation.quantity += sourceLine.remainingQuantity
+        existingAllocation.quantity += quantityToAllocate
+        remainingQuantity -= quantityToAllocate
         continue
       }
 
@@ -336,12 +388,14 @@ export class ShipmentStore {
       occupiedIds.add(id)
       newAllocations.push({
         id,
-        quantity: sourceLine.remainingQuantity,
+        quantity: quantityToAllocate,
         sourceLineId: sourceLine.id,
         transportPlaceId,
       })
+      remainingQuantity -= quantityToAllocate
     }
 
+    if (remainingQuantity > 0) throw new Error('Недостаточное количество товара для переноса')
     this.data.allocationLines.push(...newAllocations)
   }
 
@@ -424,6 +478,58 @@ export class ShipmentStore {
         this.selectedTransportPlaceProductId
       )
     })
+  }
+
+  get partialReturnContext(): null | PartialQuantityContext {
+    if (
+      this.destinationDisplayMode !== 'transport-place-products' ||
+      !this.activeTransportPlaceId ||
+      !this.selectedTransportPlaceProductId
+    ) {
+      return null
+    }
+
+    const product = this.data.products.find(
+      (product) => product.id === this.selectedTransportPlaceProductId,
+    )
+    const maximum = this.data.allocationLines.reduce((total, allocation) => {
+      if (allocation.transportPlaceId !== this.activeTransportPlaceId) return total
+      const sourceLine = this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)
+      return sourceLine?.productId === this.selectedTransportPlaceProductId
+        ? total + allocation.quantity
+        : total
+    }, 0)
+    return product && maximum > 0 ? { maximum, product } : null
+  }
+
+  returnSelectedTransportPlaceProductQuantity(quantity: number): void {
+    const context = this.partialReturnContext
+    const transportPlaceId = this.activeTransportPlaceId
+    if (!context || !transportPlaceId) {
+      throw new Error('Товар транспортного места для частичного возврата не выбран')
+    }
+    this.assertPartialQuantity(quantity, context.maximum)
+
+    let remainingQuantity = quantity
+    for (const allocation of this.data.allocationLines) {
+      if (remainingQuantity <= 0 || allocation.transportPlaceId !== transportPlaceId) continue
+      const sourceLine = this.data.sourceLines.find((line) => line.id === allocation.sourceLineId)
+      if (sourceLine?.productId !== context.product.id) continue
+
+      const quantityToReturn = Math.min(allocation.quantity, remainingQuantity)
+      allocation.quantity -= quantityToReturn
+      remainingQuantity -= quantityToReturn
+    }
+    if (remainingQuantity > 0) throw new Error('Недостаточное количество товара для возврата')
+
+    this.data.allocationLines = this.data.allocationLines.filter((allocation) => allocation.quantity > 0)
+    this.selectedTransportPlaceProductId = null
+  }
+
+  private assertPartialQuantity(quantity: number, maximum: number): void {
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > maximum) {
+      throw new Error(`Количество должно быть целым числом от 1 до ${maximum}`)
+    }
   }
 
   get orderTotals(): ShipmentTotals {

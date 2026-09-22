@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import { ArrowLeft, ArrowRight, Box, Filter, Layers, Plus, X } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 
@@ -29,6 +31,8 @@ import {
   transportPlaceRows,
 } from '@/pages/shipment/shared/format'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
+
+import { PartialQuantityDialog } from './partial-quantity-dialog'
 
 function SourceModeSelect({ store }: { store: ShipmentStore }) {
   const selectedLabel = store.sourceDisplayMode === 'containers' ? 'Контейнеры' : 'Товары'
@@ -498,7 +502,13 @@ export const TransferActions = observer(function TransferActions({
 }: {
   store: ShipmentStore
 }) {
-  const unavailableActions = ['Переместить всё по фильтру', 'Переместить количество'] as const
+  const [partialDirection, setPartialDirection] = useState<null | 'distribute' | 'return'>(null)
+  const partialContext =
+    partialDirection === 'distribute'
+      ? store.partialDistributionContext
+      : partialDirection === 'return'
+        ? store.partialReturnContext
+        : null
 
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
@@ -522,12 +532,19 @@ export const TransferActions = observer(function TransferActions({
         <ArrowRight />
         <span>Переместить строку</span>
       </Button>
-      {unavailableActions.map((label) => (
-        <UnavailableButton variant="outline" className="transfer-button" key={label}>
-          <ArrowRight />
-          <span>{label}</span>
-        </UnavailableButton>
-      ))}
+      <UnavailableButton variant="outline" className="transfer-button">
+        <ArrowRight />
+        <span>Переместить всё по фильтру</span>
+      </UnavailableButton>
+      <Button
+        variant="outline"
+        className="transfer-button"
+        disabled={!store.partialDistributionContext}
+        onClick={() => setPartialDirection('distribute')}
+      >
+        <ArrowRight />
+        <span>Переместить количество</span>
+      </Button>
       <Button
         variant="outline"
         className="transfer-button return-action"
@@ -547,10 +564,33 @@ export const TransferActions = observer(function TransferActions({
         <ArrowLeft />
         <span>Вернуть строку</span>
       </Button>
+      <Button
+        variant="outline"
+        className="transfer-button return-action"
+        disabled={!store.partialReturnContext}
+        onClick={() => setPartialDirection('return')}
+      >
+        <ArrowLeft />
+        <span>Вернуть количество</span>
+      </Button>
       <UnavailableButton variant="outline" className="transfer-button">
         <ArrowLeft />
         <span>Вернуть всё по фильтру</span>
       </UnavailableButton>
+      <PartialQuantityDialog
+        key={partialDirection}
+        context={partialContext}
+        direction={partialDirection}
+        onConfirm={(quantity) => {
+          if (partialDirection === 'distribute') store.distributeSelectedProductQuantity(quantity)
+          if (partialDirection === 'return') store.returnSelectedTransportPlaceProductQuantity(quantity)
+          setPartialDirection(null)
+        }}
+        onOpenChange={(open) => {
+          if (!open) setPartialDirection(null)
+        }}
+        open={partialDirection !== null}
+      />
     </aside>
   )
 })

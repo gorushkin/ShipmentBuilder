@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { ArrowLeft, ArrowRight, Box, Filter, Layers, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Box, Layers, Plus } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 
 import { Badge } from '@/components/ui/badge'
@@ -12,37 +12,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
 import type { ScanMachine } from '@/features/scan-machine'
 import {
-  containerRows,
-  filteredSourceRows,
-  number,
-  productRows,
-  transportPlaceProductRows,
-  transportPlaceRows,
-} from '@/pages/shipment/shared/format'
+  scannerWorkflowOrchestrator,
+  type DestinationTableMode,
+  type SourceTableMode,
+} from '@/features/scanner-workflow'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
+import { DestinationProductTable } from './destination/destination-product-table'
+import { DestinationTransportPlaceTable } from './destination/destination-transport-place-table'
 import { PartialQuantityDialog } from './partial-quantity-dialog'
+import { SourceContainerTable } from './source/source-container-table'
+import { SourceProductTable } from './source/source-product-table'
 
-function SourceModeSelect({ store }: { store: ShipmentStore }) {
-  const selectedLabel = store.sourceDisplayMode === 'containers' ? 'Контейнеры' : 'Товары'
+function SourceModeSelect({
+  mode,
+  onModeChange,
+}: {
+  mode: SourceTableMode
+  onModeChange: (mode: SourceTableMode) => void
+}) {
+  const selectedLabel = mode === 'containers' ? 'Контейнеры' : 'Товары'
 
   return (
     <Select
-      value={store.sourceDisplayMode}
+      value={mode}
       onValueChange={(value) => {
-        if (value === 'containers' || value === 'products') store.setSourceDisplayMode(value)
+        if (value === 'containers' || value === 'products') onModeChange(value)
       }}
     >
       <SelectTrigger className="mode-control" size="sm" aria-label="Режим источника">
@@ -56,18 +54,21 @@ function SourceModeSelect({ store }: { store: ShipmentStore }) {
   )
 }
 
-function DestinationModeSelect({ store }: { store: ShipmentStore }) {
-  const isDisabled = !store.activeTransportPlaceId
-  const selectedLabel =
-    store.destinationDisplayMode === 'transport-places' ? 'Контейнеры ТМ' : 'Товары ТМ'
-  const select = (
+function DestinationModeSelect({
+  mode,
+  onModeChange,
+}: {
+  mode: DestinationTableMode
+  onModeChange: (mode: DestinationTableMode) => void
+}) {
+  const selectedLabel = mode === 'transport-places' ? 'Контейнеры ТМ' : 'Товары ТМ'
+
+  return (
     <Select
-      disabled={isDisabled}
-      value={store.destinationDisplayMode}
+      value={mode}
       onValueChange={(value) => {
-        if (value === 'transport-places' || value === 'transport-place-products') {
-          store.setDestinationDisplayMode(value)
-        }
+        if (value === 'transport-places' || value === 'transport-place-products')
+          onModeChange(value)
       }}
     >
       <SelectTrigger className="mode-control" size="sm" aria-label="Режим транспортных мест">
@@ -78,17 +79,6 @@ function DestinationModeSelect({ store }: { store: ShipmentStore }) {
         <SelectItem value="transport-place-products">Товары ТМ</SelectItem>
       </SelectContent>
     </Select>
-  )
-
-  if (!isDisabled) return select
-
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="disabled-control mode-control" />}>
-        {select}
-      </TooltipTrigger>
-      <TooltipContent>Выберите транспортное место</TooltipContent>
-    </Tooltip>
   )
 }
 
@@ -113,107 +103,19 @@ function CreateTransportPlaceAction({
   )
 }
 
-function ShipmentTableHeader({ destination = false }: { destination?: boolean }) {
-  return (
-    <TableHeader>
-      <TableRow>
-        {[destination ? 'ТМ' : 'Контейнер', 'SKU', 'ШТ', 'Короба', 'Объём, м³', ''].map((label) => (
-          <TableHead scope="col" key={label}>
-            {label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  )
-}
+export const SourcePanel = observer(function SourcePanel() {
+  const [mode, setMode] = useState<SourceTableMode>('containers')
+  const rowCount =
+    mode === 'products'
+      ? scannerWorkflowOrchestrator.getSourceRows('products').length
+      : scannerWorkflowOrchestrator.getSourceRows('containers').length
+  const sourceTable =
+    mode === 'products' ? (
+      <SourceProductTable rows={scannerWorkflowOrchestrator.getSourceRows('products')} />
+    ) : (
+      <SourceContainerTable rows={scannerWorkflowOrchestrator.getSourceRows('containers')} />
+    )
 
-function ProductTableHeader() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров', ''].map((label) => (
-          <TableHead scope="col" key={label}>
-            {label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  )
-}
-
-function FilteredSourceTableHeader() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {['Контейнер', 'Код товара', 'Наименование', 'ШТ', 'Короба'].map((label) => (
-          <TableHead scope="col" key={label}>
-            {label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  )
-}
-
-function FilterAction({ onClick }: { onClick: () => void }) {
-  return (
-    <Button
-      aria-label="Включить фильтр"
-      className="row-filter-action"
-      onClick={(event) => {
-        event.stopPropagation()
-        onClick()
-      }}
-      size="icon-sm"
-      variant="ghost"
-    >
-      <Filter />
-    </Button>
-  )
-}
-
-function TransportPlaceProductTableHeader() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {['Код товара', 'Наименование', 'ШТ', 'Короба'].map((label) => (
-          <TableHead scope="col" key={label}>
-            {label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  )
-}
-
-export const SourcePanel = observer(function SourcePanel({
-  scanMachine,
-  store,
-}: {
-  scanMachine: ScanMachine
-  store: ShipmentStore
-}) {
-  const containerRowsList = containerRows(store)
-  const productRowsList = productRows(store)
-  const filteredRowsList = filteredSourceRows(store)
-  const sourceFilter = store.sourceFilter
-  const isFiltered = sourceFilter !== null
-  const isProductMode = isFiltered || store.sourceDisplayMode === 'products'
-  const selectedContainer = containerRowsList.find((row) => row.id === store.selectedContainerId)
-  const selectedProduct = productRowsList.find((row) => row.id === store.selectedProductId)
-  const rowCount = isFiltered
-    ? filteredRowsList.length
-    : isProductMode
-      ? productRowsList.length
-      : containerRowsList.length
-  const filteredContainer =
-    sourceFilter?.type === 'container'
-      ? store.data.containers.find((container) => container.id === sourceFilter.containerId)
-      : undefined
-  const filteredProduct =
-    sourceFilter?.type === 'product'
-      ? store.data.products.find((product) => product.id === sourceFilter.productId)
-      : undefined
   return (
     <section className="work-panel" aria-labelledby="source-title">
       <header className="panel-header">
@@ -225,189 +127,10 @@ export const SourcePanel = observer(function SourcePanel({
           </Badge>
         </div>
         <div className="panel-toolbar">
-          <SourceModeSelect store={store} />
-          <span className="filter-indicator">
-            Контейнер: {filteredContainer?.barcode ?? selectedContainer?.name ?? '—'}
-            {filteredContainer && (
-              <Button
-                aria-label="Снять фильтр контейнера"
-                onClick={() => {
-                  store.clearSourceFilter()
-                  scanMachine.mouseFilterCleared()
-                }}
-                size="icon-sm"
-                variant="ghost"
-              >
-                <X />
-              </Button>
-            )}
-          </span>
-          <span className="filter-indicator">
-            Товар:{' '}
-            {filteredProduct
-              ? `${filteredProduct.code} · ${filteredProduct.name}`
-              : selectedProduct
-                ? `${selectedProduct.code} · ${selectedProduct.name}`
-                : '—'}
-            {filteredProduct && (
-              <Button
-                aria-label="Снять фильтр товара"
-                onClick={() => {
-                  store.clearSourceFilter()
-                  scanMachine.mouseFilterCleared()
-                }}
-                size="icon-sm"
-                variant="ghost"
-              >
-                <X />
-              </Button>
-            )}
-          </span>
+          <SourceModeSelect mode={mode} onModeChange={setMode} />
         </div>
       </header>
-      <div className="table-scroll">
-        {isFiltered ? (
-          filteredRowsList.length > 0 ? (
-            <Table aria-label="Отфильтрованные товары источника">
-              <FilteredSourceTableHeader />
-              <TableBody>
-                {filteredRowsList.map((row) => {
-                  const isSelected = row.id === store.selectedSourceLineId
-                  return (
-                    <TableRow
-                      aria-selected={isSelected}
-                      className="source-product-row"
-                      data-active={isSelected}
-                      key={row.id}
-                      onClick={() => {
-                        store.selectSourceLine(row.id)
-                        scanMachine.mouseProductSelected(row.productId)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        store.selectSourceLine(row.id)
-                        scanMachine.mouseProductSelected(row.productId)
-                      }}
-                      tabIndex={0}
-                    >
-                      <TableCell>{row.container}</TableCell>
-                      <TableCell>{row.code}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{number(row.units, 0)}</TableCell>
-                      <TableCell>{number(row.boxes)}</TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="empty-state">
-              <h3>Нет товаров для распределения</h3>
-            </div>
-          )
-        ) : isProductMode ? (
-          productRowsList.length > 0 ? (
-            <Table aria-label="Товары к распределению">
-              <ProductTableHeader />
-              <TableBody>
-                {productRowsList.map((row) => {
-                  const isSelected = row.id === store.selectedProductId
-
-                  return (
-                    <TableRow
-                      aria-selected={isSelected}
-                      className="source-product-row"
-                      data-active={isSelected}
-                      key={row.id}
-                      onClick={() => {
-                        store.selectProduct(row.id)
-                        scanMachine.mouseProductSelected(row.id)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        store.selectProduct(row.id)
-                        scanMachine.mouseProductSelected(row.id)
-                      }}
-                      tabIndex={0}
-                    >
-                      <TableCell>{row.code}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{number(row.units, 0)}</TableCell>
-                      <TableCell>{number(row.boxes)}</TableCell>
-                      <TableCell>{number(row.containers, 0)}</TableCell>
-                      <TableCell>
-                        <FilterAction
-                          onClick={() => {
-                            store.setProductFilter(row.id)
-                            scanMachine.mouseProductSelected(row.id)
-                          }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="empty-state source-empty-state">
-              <div className="empty-icon">
-                <Box aria-hidden="true" />
-              </div>
-              <h3>Все товары распределены</h3>
-            </div>
-          )
-        ) : (
-          <Table aria-label="Контейнеры отбора">
-            <ShipmentTableHeader />
-            <TableBody>
-              {containerRowsList.map((row) => {
-                const isSelected = row.id === store.selectedContainerId
-
-                return (
-                  <TableRow
-                    aria-selected={isSelected}
-                    className="source-container-row"
-                    data-active={isSelected}
-                    key={row.id}
-                    onClick={() => {
-                      store.selectContainer(row.id)
-                      scanMachine.mouseContainerSelected(row.id)
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter' && event.key !== ' ') return
-                      event.preventDefault()
-                      store.selectContainer(row.id)
-                      scanMachine.mouseContainerSelected(row.id)
-                    }}
-                    tabIndex={0}
-                  >
-                    <TableCell>
-                      <span className="container-name">
-                        <Box aria-hidden="true" />
-                        {row.name}
-                      </span>
-                    </TableCell>
-                    <TableCell>{row.sku}</TableCell>
-                    <TableCell>{number(row.units, 0)}</TableCell>
-                    <TableCell>{number(row.boxes)}</TableCell>
-                    <TableCell>{number(row.volume, 4)}</TableCell>
-                    <TableCell>
-                      <FilterAction
-                        onClick={() => {
-                          store.setContainerFilter(row.id)
-                          scanMachine.mouseContainerSelected(row.id)
-                        }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      <div className="table-scroll">{sourceTable}</div>
     </section>
   )
 })
@@ -419,10 +142,20 @@ export const DestinationPanel = observer(function DestinationPanel({
   scanMachine: ScanMachine
   store: ShipmentStore
 }) {
-  const rows = transportPlaceRows(store)
-  const productRowsList = transportPlaceProductRows(store)
-  const isProductMode = store.destinationDisplayMode === 'transport-place-products'
-  const rowCount = isProductMode ? productRowsList.length : rows.length
+  const [mode, setMode] = useState<DestinationTableMode>('transport-places')
+  const isProductMode = mode === 'transport-place-products'
+  const rowCount = isProductMode
+    ? scannerWorkflowOrchestrator.getDestinationRows('transport-place-products').length
+    : scannerWorkflowOrchestrator.getDestinationRows('transport-places').length
+  const destinationTable = isProductMode ? (
+    <DestinationProductTable
+      rows={scannerWorkflowOrchestrator.getDestinationRows('transport-place-products')}
+    />
+  ) : (
+    <DestinationTransportPlaceTable
+      rows={scannerWorkflowOrchestrator.getDestinationRows('transport-places')}
+    />
+  )
 
   return (
     <section className="work-panel" aria-labelledby="destination-title">
@@ -436,7 +169,7 @@ export const DestinationPanel = observer(function DestinationPanel({
           <CreateTransportPlaceAction scanMachine={scanMachine} store={store} />
         </div>
         <div className="panel-toolbar">
-          <DestinationModeSelect store={store} />
+          <DestinationModeSelect mode={mode} onModeChange={setMode} />
           <UnavailableButton variant="outline" size="sm">
             PAL
           </UnavailableButton>
@@ -445,107 +178,7 @@ export const DestinationPanel = observer(function DestinationPanel({
           </UnavailableButton>
         </div>
       </header>
-      <div className="table-scroll destination-scroll">
-        {isProductMode ? (
-          productRowsList.length > 0 ? (
-            <Table aria-label="Товары активного транспортного места">
-              <TransportPlaceProductTableHeader />
-              <TableBody>
-                {productRowsList.map((row) => {
-                  const isSelected = row.id === store.selectedTransportPlaceProductId
-
-                  return (
-                    <TableRow
-                      aria-selected={isSelected}
-                      className="transport-place-product-row"
-                      data-active={isSelected}
-                      key={row.id}
-                      onClick={() => store.selectTransportPlaceProduct(row.id)}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        store.selectTransportPlaceProduct(row.id)
-                      }}
-                      tabIndex={0}
-                    >
-                      <TableCell>{row.code}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{number(row.units, 0)}</TableCell>
-                      <TableCell>{number(row.boxes)}</TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <Box aria-hidden="true" />
-              </div>
-              <h3>В транспортном месте нет товаров</h3>
-            </div>
-          )
-        ) : (
-          <>
-            <Table aria-label="Транспортные места">
-              <ShipmentTableHeader destination />
-              <TableBody>
-                {rows.map((row) => {
-                  const isActive = row.id === store.activeTransportPlaceId
-
-                  return (
-                    <TableRow
-                      aria-selected={isActive}
-                      className="transport-place-row"
-                      data-active={isActive}
-                      key={row.id}
-                      onClick={() => {
-                        store.selectTransportPlace(row.id)
-                        scanMachine.mouseTransportPlaceSelected(row.id)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        store.selectTransportPlace(row.id)
-                        scanMachine.mouseTransportPlaceSelected(row.id)
-                      }}
-                      tabIndex={0}
-                    >
-                      <TableCell>
-                        <span className="container-name">
-                          <Layers aria-hidden="true" />
-                          {row.name}
-                        </span>
-                      </TableCell>
-                      <TableCell>{row.sku}</TableCell>
-                      <TableCell>{number(row.units, 0)}</TableCell>
-                      <TableCell>{number(row.boxes)}</TableCell>
-                      <TableCell>{number(row.volume, 4)}</TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-            {rows.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-icon">
-                  <Layers aria-hidden="true" />
-                </div>
-                <h3>
-                  Транспортные места
-                  <br />
-                  ещё не созданы
-                </h3>
-                <p>
-                  Здесь появятся места
-                  <br />
-                  для упаковки товаров заказа
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      <div className="table-scroll destination-scroll">{destinationTable}</div>
     </section>
   )
 })
@@ -646,7 +279,8 @@ export const TransferActions = observer(function TransferActions({
         direction={partialDirection}
         onConfirm={(quantity) => {
           if (partialDirection === 'distribute') store.distributeSelectedProductQuantity(quantity)
-          if (partialDirection === 'return') store.returnSelectedTransportPlaceProductQuantity(quantity)
+          if (partialDirection === 'return')
+            store.returnSelectedTransportPlaceProductQuantity(quantity)
           setPartialDirection(null)
         }}
         onOpenChange={(open) => {

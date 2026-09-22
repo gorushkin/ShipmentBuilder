@@ -12,7 +12,7 @@ export function DistributionWorkspace({
 }) {
   return (
     <div className="workspace">
-      <SourcePanel scanMachine={scanMachine} store={store} />
+      <SourcePanel />
       <TransferActions store={store} />
       <DestinationPanel scanMachine={scanMachine} store={store} />
     </div>

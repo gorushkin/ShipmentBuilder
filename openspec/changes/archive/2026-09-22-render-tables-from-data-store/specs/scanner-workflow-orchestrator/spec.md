@@ -1,11 +1,4 @@
-# Scanner Workflow Orchestrator
-
-## Purpose
-
-Определяет lifecycle загрузки snapshot-а и техническое наблюдение за процессом
-сканирования до подключения доменных реакций.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Orchestrator lifecycle and snapshot loading
 
@@ -22,7 +15,6 @@ SHALL остановить subscription и запретить позднему l
 общий экземпляр оркестратора и его store.
 
 #### Scenario: Load demo data for table rendering on start
-
 - **WHEN** composition root запускает оркестратор с demo loader
 - **THEN** loader вызывается один раз и data store получает его snapshot
 - **AND** обе таблицы читают данные из этого же data store через общий orchestrator
@@ -57,7 +49,6 @@ SHALL NOT отправлять completion events машине. Read-only table p
 считаются workflow reactions и не изменяют состояние.
 
 #### Scenario: Log a selected container
-
 - **WHEN** машина переходит в `container-selected(C1)`
 - **THEN** оркестратор пишет один structured log с container context
 - **AND** source filter и allocations data store не меняются

@@ -8,18 +8,22 @@
 
 ### Requirement: Source container selection
 
-`ShipmentStore` SHALL хранить ID выбранного исходного контейнера отдельно от `ShipmentData`. Пользователь SHALL иметь возможность выбрать ровно один отображаемый контейнер с положительным остатком. Выбор SHALL NOT изменять исходные данные, распределения или активное ТМ.
+`ShipmentStore` SHALL retain its ID-based container-selection capability for
+legacy operations. The new data-backed container table SHALL render rows without
+selecting a container: row clicks SHALL be inert or emit a technical log only,
+and SHALL NOT mutate either store or scanner state. This temporary UI limitation
+SHALL NOT change the transfer command's existing validation and allocation rules.
 
-#### Scenario: Select a container
+#### Scenario: Click a source container row
 
-- **WHEN** пользователь выбирает отображаемый контейнер N00001
-- **THEN** `selectedContainerId` указывает на N00001
-- **AND** остатки, распределения и активное ТМ не изменяются
+- **WHEN** пользователь кликает или активирует строку контейнера источника
+- **THEN** строка остаётся отображением данных либо пишет технический лог с типом сущности и ID
+- **AND** `selectedContainerId`, фильтры, распределения, активное ТМ и состояние сканера не меняются
 
-#### Scenario: Replace the selection
+#### Scenario: Legacy selection capability remains available
 
-- **WHEN** выбран N00001 и пользователь выбирает N00002
-- **THEN** выбранным становится только N00002
+- **WHEN** non-table legacy caller explicitly invokes container selection with a valid container ID
+- **THEN** legacy `ShipmentStore` may retain that selection without changing source data, allocations or active transport place
 
 ### Requirement: Automatically prepare a transport place for transfer
 

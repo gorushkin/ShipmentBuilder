@@ -1,10 +1,4 @@
-# Transport Place Product Mode
-
-## Purpose
-
-Определяет просмотр и выбор агрегированных товаров активного транспортного места в правой области.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Destination display mode
 
@@ -15,14 +9,12 @@
 показывать пустое состояние списка товаров.
 
 #### Scenario: Open products of an active transport place
-
 - **WHEN** активно ТМ-001 и пользователь выбирает «Товары ТМ»
 - **THEN** правая область показывает товары только ТМ-001
-- **AND** список контейнеров ТМ не отображается
+- **AND** список транспортных мест не отображается
 
 #### Scenario: No active transport place
-
-- **WHEN** активное ТМ отсутствует
+- **WHEN** active ТМ отсутствует и пользователь выбирает «Товары ТМ»
 - **THEN** переключатель остаётся доступным, а проекция товаров пуста
 - **AND** интерфейс отображает пустое состояние без выбора или создания ТМ
 
@@ -36,14 +28,16 @@
 список SHALL быть пустым.
 
 #### Scenario: Aggregate one product from different source containers
-
-- **WHEN** в активном ТМ-001 находятся 10 штук P1 из L1 и 15 штук P1 из L2
+- **WHEN** в active ТМ-001 находятся 10 штук P1 из L1 и 15 штук P1 из L2
 - **THEN** режим «Товары ТМ» показывает одну строку P1 с 25 штуками и рассчитанным числом коробов
 
 #### Scenario: Empty active transport place
-
 - **WHEN** активно ТМ-001 без положительных распределений и выбран режим «Товары ТМ»
 - **THEN** вместо строк отображается заглушка «В транспортном месте нет товаров»
+
+#### Scenario: No active transport place
+- **WHEN** active ТМ отсутствует и выбран режим «Товары ТМ»
+- **THEN** projection не показывает товары и не меняет состояние стора
 
 ### Requirement: Destination product selection lifecycle
 
@@ -55,13 +49,11 @@ for legacy operations. В новых табличных режимах стро�
 данных.
 
 #### Scenario: Activate a destination product row
-
 - **WHEN** пользователь кликает по строке товара или активирует её клавиатурой
 - **THEN** строка остаётся отображением данных либо записывается технический лог её типа и ID
 - **AND** выбор товара, active ТМ и allocation lines не меняются
 
 #### Scenario: Switch local destination mode
-
 - **WHEN** пользователь переключает режим между «Контейнеры ТМ» и «Товары ТМ»
 - **THEN** панель запрашивает соответствующую проекцию у orchestrator
 - **AND** переключение не меняет active ТМ или allocations

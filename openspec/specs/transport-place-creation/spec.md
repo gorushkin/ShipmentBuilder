@@ -45,33 +45,43 @@
 
 ### Requirement: Active transport place
 
-`ShipmentStore` SHALL хранить ID активного транспортного места отдельно от `ShipmentData`. Созданное место SHALL автоматически становиться активным. Пользователь SHALL иметь возможность сделать активным другое существующее место, не меняя состав ТМ и распределение.
+`ShipmentStore` SHALL retain its ID-based active transport-place state and
+creation command behavior for legacy controls. The new data-backed transport
+place table SHALL NOT change the active transport place on row click; clicks
+SHALL be inert or emit a technical log only. The new table projection SHALL
+include whether a row matches `ShipmentDataStore.activeTransportPlaceId`, so an
+active item can be rendered distinctly when one exists.
 
 #### Scenario: Created place becomes active
 
 - **WHEN** пользователь создаёт новое транспортное место
 - **THEN** `activeTransportPlaceId` равен ID созданного места
 
-#### Scenario: Select an existing place
+#### Scenario: Click a transport place table row
 
-- **WHEN** существуют `ТМ-001` и `ТМ-002`, а пользователь выбирает `ТМ-001`
-- **THEN** активным становится `ТМ-001`
-- **AND** оба транспортных места и allocationLines остаются без изменений
+- **WHEN** the user clicks or activates a transport-place row in the new table
+- **THEN** the row remains a data display only or emits a technical log containing its entity type and ID
+- **AND** active transport place, allocations and scanner state remain unchanged
 
 ### Requirement: Created transport places presentation
 
-Правая панель SHALL показывать созданные транспортные места в порядке sequence. Каждая пустая строка SHALL отображать номер места и нулевые значения SKU, штук, коробов и объёма. Активное место SHALL иметь визуально различимое и доступное состояние выбора.
+Правая панель SHALL показывать транспортные места из `ShipmentDataStore` в
+порядке sequence. Каждая пустая строка SHALL отображать номер места и нулевые
+значения SKU, штук, коробов и объёма. Строка SHALL визуально обозначать active
+state тогда и только тогда, когда её ID совпадает с
+`ShipmentDataStore.activeTransportPlaceId`. Отсутствие active place SHALL NOT
+мешать рендерингу транспортных мест.
 
 #### Scenario: Empty state before creation
 
 - **WHEN** транспортных мест нет
 - **THEN** панель показывает сообщение «Транспортные места ещё не созданы»
 
-#### Scenario: Destination rows after creation
+#### Scenario: Destination rows after snapshot load
 
-- **WHEN** пользователь создал `ТМ-001` и `ТМ-002`
+- **WHEN** загруженный snapshot содержит `ТМ-001` и `ТМ-002` без распределений
 - **THEN** пустое сообщение скрыто, а таблица показывает две строки в порядке создания
-- **AND** у обеих строк отображаются нулевые показатели, `ТМ-002` отмечено активным
+- **AND** у обеих строк отображаются нулевые показатели; если active place отсутствует, ни одна строка не обозначается активной
 
 ### Requirement: Creation does not distribute goods
 

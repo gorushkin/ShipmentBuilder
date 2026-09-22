@@ -1,0 +1,45 @@
+.page-header {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+}
+.page-heading {
+  display: grid;
+  grid-template-columns: 44px auto;
+  align-items: center;
+  gap: 14px;
+}
+.app-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 48px;
+  border: 1px solid #d8e3fc;
+  border-radius: 12px;
+  background: #eaf0ff;
+  color: #245ad5;
+}
+.order-actions {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 8px;
+}
+.order-actions button {
+  font-size: 11px;
+}
+.order-actions svg {
+  width: 13px;
+  height: 13px;
+}
+@media (max-width: 1300px) {
+  .page-header {
+    gap: 12px;
+  }
+  .order-actions {
+    gap: 6px;
+  }
+  .order-actions button {
+    padding-inline: 7px;
+  }
+}

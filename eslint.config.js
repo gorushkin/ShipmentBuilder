@@ -77,6 +77,10 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
     rules: {
       'react-hooks/exhaustive-deps': 'error',
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, extraHOCs: ['observer'] },
+      ],
       'no-restricted-imports': [
         'error',
         {

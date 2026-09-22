@@ -81,3 +81,72 @@ export function createDemoData(): ShipmentData {
     transportPlaces: [],
   }
 }
+
+/**
+ * Набор для ручной проверки объёмного заказа.
+ *
+ * В заказе ровно 1 000 SKU, по две товарные строки в каждом из 500 контейнеров
+ * и 500 уже созданных транспортных мест. Первая половина товарных строк
+ * распределена по ТМ, поэтому в интерфейсе можно проверить и остатки, и места.
+ */
+export function createLargeDemoData(): ShipmentData {
+  const orderId = 'ORD-LARGE-001'
+  const skuCount = 1000
+  const containerCount = 500
+  const transportPlaceCount = 500
+  const products = Array.from({ length: skuCount }, (_, index) => {
+    const number = index + 1
+    const suffix = String(number).padStart(4, '0')
+    return {
+      barcode: `LARGE-P-${suffix}`,
+      code: `SKU-${suffix}`,
+      id: `P${suffix}`,
+      isMarked: number % 10 === 0,
+      name: `Тестовый товар ${suffix}`,
+      unitsPerBox: 10,
+      unitVolumeM3: 0.001,
+      unitWeightKg: 0.2,
+    }
+  })
+  const containers = Array.from({ length: containerCount }, (_, index) => {
+    const number = index + 1
+    const suffix = String(number).padStart(3, '0')
+    return { barcode: `N-LARGE-${suffix}`, id: `C${suffix}`, orderId }
+  })
+  const sourceLines = products.map((product, index) => {
+    const suffix = String(index + 1).padStart(4, '0')
+    return {
+      containerId: containers[Math.floor(index / 2)].id,
+      id: `L${suffix}`,
+      productId: product.id,
+      quantity: 10,
+    }
+  })
+  const transportPlaces = Array.from({ length: transportPlaceCount }, (_, index) => {
+    const number = index + 1
+    const suffix = String(number).padStart(3, '0')
+    return { id: `${orderId}-TP-${suffix}`, number: `ТМ-${suffix}`, orderId, sequence: number }
+  })
+  const allocationLines = transportPlaces.map((transportPlace, index) => ({
+    id: `${transportPlace.id}-L${String(index + 1).padStart(4, '0')}-allocation`,
+    quantity: 10,
+    sourceLineId: sourceLines[index].id,
+    transportPlaceId: transportPlace.id,
+  }))
+
+  return {
+    aggregationCodes: [],
+    allocationLines,
+    containers,
+    markingCodes: [],
+    order: {
+      clientName: 'Тестовый клиент: большой заказ',
+      controlStatus: 'checked',
+      id: orderId,
+      number: '9000000001',
+    },
+    products,
+    sourceLines,
+    transportPlaces,
+  }
+}

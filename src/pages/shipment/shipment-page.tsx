@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { createLargeDemoData } from '@/domain/shipment/demo-data'
 import { ShipmentStore } from '@/domain/shipment/shipment-store'
 
 import { DistributionStatus } from './distribution-status'
@@ -10,7 +11,13 @@ import { ShipmentHeader } from './shipment-header'
 import './shipment.css'
 
 export function ShipmentPage() {
-  const [store] = useState(() => new ShipmentStore())
+  const [store] = useState(() =>
+    new ShipmentStore(
+      new URLSearchParams(window.location.search).get('scenario') === 'large'
+        ? createLargeDemoData()
+        : undefined,
+    ),
+  )
   return (
     <main className="shipment-page">
       <ShipmentHeader />

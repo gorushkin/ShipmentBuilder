@@ -4,23 +4,36 @@ export const number = (value: number, digits = 2) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(value)
 
 export function containerRows(store: ShipmentStore) {
-  return store.data.containers
-    .map((container) => {
-      const lines = store.remainingLines.filter((line) => line.containerId === container.id)
-      let units = 0
-      let boxes = 0
-      let volume = 0
-      const products = new Set<string>()
-      for (const line of lines) {
-        const product = store.data.products.find((item) => item.id === line.productId)
-        if (!product || line.remainingQuantity <= 0) continue
-        products.add(product.id)
-        units += line.remainingQuantity
-        boxes += line.remainingQuantity / product.unitsPerBox
-        volume += line.remainingQuantity * product.unitVolumeM3
-      }
-      return { boxes, id: container.id, name: container.barcode, sku: products.size, units, volume }
+  const productsById = new Map(store.data.products.map((product) => [product.id, product]))
+  const rows = new Map<
+    string,
+    { boxes: number; id: string; name: string; products: Set<string>; units: number; volume: number }
+  >()
+
+  for (const container of store.data.containers) {
+    rows.set(container.id, {
+      boxes: 0,
+      id: container.id,
+      name: container.barcode,
+      products: new Set<string>(),
+      units: 0,
+      volume: 0,
     })
+  }
+
+  for (const line of store.remainingLines) {
+    if (line.remainingQuantity <= 0) continue
+    const product = productsById.get(line.productId)
+    const row = rows.get(line.containerId)
+    if (!product || !row) continue
+    row.products.add(product.id)
+    row.units += line.remainingQuantity
+    row.boxes += line.remainingQuantity / product.unitsPerBox
+    row.volume += line.remainingQuantity * product.unitVolumeM3
+  }
+
+  return [...rows.values()]
+    .map(({ products, ...row }) => ({ ...row, sku: products.size }))
     .filter((row) => row.units > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -89,40 +102,48 @@ export function filteredSourceRows(store: ShipmentStore) {
 }
 
 export function transportPlaceRows(store: ShipmentStore) {
-  return [...store.data.transportPlaces]
-    .sort((a, b) => a.sequence - b.sequence)
-    .map((transportPlace) => {
-      const allocations = store.data.allocationLines.filter(
-        (line) => line.transportPlaceId === transportPlace.id,
-      )
-      let boxes = 0
-      let units = 0
-      let volume = 0
-      const products = new Set<string>()
+  const productsById = new Map(store.data.products.map((product) => [product.id, product]))
+  const sourceLinesById = new Map(store.data.sourceLines.map((line) => [line.id, line]))
+  const rows = new Map<
+    string,
+    {
+      boxes: number
+      id: string
+      name: string
+      products: Set<string>
+      sequence: number
+      units: number
+      volume: number
+    }
+  >()
 
-      for (const allocation of allocations) {
-        const sourceLine = store.data.sourceLines.find(
-          (line) => line.id === allocation.sourceLineId,
-        )
-        const product = store.data.products.find((item) => item.id === sourceLine?.productId)
-        if (!product || allocation.quantity <= 0) continue
-
-        products.add(product.id)
-        units += allocation.quantity
-        boxes += allocation.quantity / product.unitsPerBox
-        volume += allocation.quantity * product.unitVolumeM3
-      }
-
-      return {
-        boxes,
-        id: transportPlace.id,
-        name: transportPlace.number,
-        sequence: transportPlace.sequence,
-        sku: products.size,
-        units,
-        volume,
-      }
+  for (const transportPlace of store.data.transportPlaces) {
+    rows.set(transportPlace.id, {
+      boxes: 0,
+      id: transportPlace.id,
+      name: transportPlace.number,
+      products: new Set<string>(),
+      sequence: transportPlace.sequence,
+      units: 0,
+      volume: 0,
     })
+  }
+
+  for (const allocation of store.data.allocationLines) {
+    if (allocation.quantity <= 0) continue
+    const row = rows.get(allocation.transportPlaceId)
+    const sourceLine = sourceLinesById.get(allocation.sourceLineId)
+    const product = sourceLine ? productsById.get(sourceLine.productId) : undefined
+    if (!row || !product) continue
+    row.products.add(product.id)
+    row.units += allocation.quantity
+    row.boxes += allocation.quantity / product.unitsPerBox
+    row.volume += allocation.quantity * product.unitVolumeM3
+  }
+
+  return [...rows.values()]
+    .map(({ products, ...row }) => ({ ...row, sku: products.size }))
+    .sort((a, b) => a.sequence - b.sequence)
 }
 
 export function transportPlaceProductRows(store: ShipmentStore) {

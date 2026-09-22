@@ -532,10 +532,15 @@ export const TransferActions = observer(function TransferActions({
         <ArrowRight />
         <span>Переместить строку</span>
       </Button>
-      <UnavailableButton variant="outline" className="transfer-button">
+      <Button
+        variant="outline"
+        className="transfer-button"
+        disabled={!store.canDistributeBulkSourceLines}
+        onClick={() => store.distributeBulkSourceLines()}
+      >
         <ArrowRight />
         <span>Переместить всё по фильтру</span>
-      </UnavailableButton>
+      </Button>
       <Button
         variant="outline"
         className="transfer-button"
@@ -573,10 +578,15 @@ export const TransferActions = observer(function TransferActions({
         <ArrowLeft />
         <span>Вернуть количество</span>
       </Button>
-      <UnavailableButton variant="outline" className="transfer-button">
+      <Button
+        variant="outline"
+        className="transfer-button return-action"
+        disabled={!store.canReturnBulkDestinationLines}
+        onClick={() => store.returnBulkDestinationLines()}
+      >
         <ArrowLeft />
         <span>Вернуть всё по фильтру</span>
-      </UnavailableButton>
+      </Button>
       <PartialQuantityDialog
         key={partialDirection}
         context={partialContext}

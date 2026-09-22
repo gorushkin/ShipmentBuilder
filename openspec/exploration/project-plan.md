@@ -84,6 +84,110 @@
 - [ ] В первом наборе команд соединить сканы с существующими фильтрами,
   выбором активного ТМ и переносами контейнера/товара.
 
+## Целевая архитектура сканирования
+
+Следующие этапы строятся вокруг четырёх слабо связанных сущностей и одного
+места их композиции:
+
+```text
+BarcodeInputController
+  │ barcodeCompleted(value)
+  ▼
+ScanMachine ── effect ──► ScannerWorkflowOrchestrator
+                                │
+                                ▼
+                         ShipmentDataStore
+```
+
+### BarcodeInputController
+
+Владеет только браузерным вводом: DOM input, `Enter`, `F2`/`Esc`, очисткой и
+фокусом. Он не классифицирует штрихкоды и не знает о товарах, контейнерах или
+распределениях. Завершённый ввод передаёт через `barcodeCompleted(value)`.
+
+### ScanMachine
+
+Хранит сценарный шаг пользователя, контекст повторного сканирования и
+одноразовые effects. Не изменяет доменные данные, не обращается к React/DOM и
+не вызывает `ShipmentDataStore` напрямую. После выполнения effect получает
+`succeeded` или `failed`.
+
+Сырой штрихкод в машину не передаётся. `ScannerWorkflowOrchestrator` получает
+`value` от `BarcodeInputController`, нормализует его через
+`trim().toUpperCase()`, передаёт в resolver и отправляет машине типизированное
+событие:
+
+```ts
+type ScanEvent =
+  | { type: 'container-scanned'; containerId: string }
+  | { type: 'product-scanned'; productId: string }
+  | { type: 'transport-place-scanned'; transportPlaceId: string }
+  | { type: 'command-scanned'; command: 'transfer-quantity' }
+  | { type: 'operation-succeeded'; result: TransferResult }
+  | { type: 'operation-failed'; code: ScanOperationErrorCode }
+```
+
+Для прототипа штрихкоды короткие, регистронезависимые и с однозначными
+префиксами: контейнеры `C1`, товары `P1`, ТМ `TM1`, команда произвольного
+количества `CMD:QTY`. Resolver ищет точное совпадение среди загруженного mock
+snapshot; позднее его реализация может использовать backend без изменения
+контракта машины.
+
+Устойчивые шаги первой версии: `ready`, `container-selected(containerId)`,
+`product-selected(productId)` и `awaiting-quantity(productId, maximum)`.
+Переходные шаги: `transferring-container`,
+`transferring-product-from-container`, `transferring-next-product-line` и
+`transferring-quantity`. Пока активен `transferring-*`, scanner input disabled,
+на экране показано «Обработка…», а новый скан не принимается. После завершения
+оркестратор передаёт `operation-succeeded` или `operation-failed`.
+
+Основные переходы первой версии:
+
+```text
+ready + container C1 → container-selected(C1)
+container-selected(C1) + same C1 → transferring-container(C1)
+container-selected(C1) + product P1 → transferring-product-from-container(C1, P1)
+ready + product P1 → product-selected(P1) и фильтр P1
+product-selected(P1) + same P1 → transferring-next-product-line(P1)
+product-selected(P1) + CMD:QTY → awaiting-quantity(P1, maximum)
+any stable step + TM1 → выбирает активное ТМ, source-context сохраняется
+```
+
+Товар, отсканированный при `container-selected(C1)`, переносится сразу только
+из `C1` и не заменяет устойчивый контейнерный контекст. Успешный полный перенос
+контейнера либо перенос последней товарной строки возвращает машину в `ready`.
+Ошибка возвращает к последнему устойчивому шагу и показывает сообщение; data
+store возвращает стабильный error code, а машина сопоставляет ему русский текст.
+
+Действия мышью синхронизируют контекст машины явными событиями
+`mouseContainerSelected`, `mouseProductSelected`, `mouseTransportPlaceSelected`
+и `mouseFilterCleared`. Машина не наблюдает за полями data store неявно.
+
+### ShipmentDataStore
+
+Хранит снимок данных формирования ТМ и производные состояния: остатки,
+распределения, активное ТМ, фильтр контейнера или товара и доступные строки.
+Источник снимка не является его ответственностью: сегодня это моки, позднее
+fetcher, REST API или иной загрузчик. Стор предоставляет публичные команды и
+не зависит от машины состояний или контроллера ввода.
+
+Фильтрация, меняющая рабочий контекст («контейнер», «товар», доступные строки),
+принадлежит `ShipmentDataStore`. Чисто визуальное состояние, не меняющее этот
+контекст, остаётся в UI-компонентах.
+
+### ScannerWorkflowOrchestrator
+
+Наблюдает за ID нового effect `ScanMachine`, сопоставляет его с публичной
+командой `ShipmentDataStore` и передаёт результат обратно машине. Он является
+единственным местом, где машина и data store связаны между собой.
+
+### Composition root
+
+Отдельная фабрика или верхний уровень `ShipmentPage` создаёт data store,
+машину, оркестратор и controller, передаёт зависимости в нужном направлении и
+освобождает MobX reactions при размонтировании. Сущности выше не импортируют
+друг друга в обратном направлении и не образуют циклических зависимостей.
+
 ## Следующие небольшие функции
 
 - [ ] REST API и замена локальных команд интеграцией с backend.

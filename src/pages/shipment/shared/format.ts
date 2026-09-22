@@ -94,6 +94,7 @@ export function filteredSourceRows(store: ShipmentStore) {
         container: container.barcode,
         id: line.id,
         name: product.name,
+        productId: product.id,
         units: line.remainingQuantity,
       }
     })

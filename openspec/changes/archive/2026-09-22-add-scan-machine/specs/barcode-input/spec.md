@@ -1,24 +1,4 @@
-# Barcode Input
-
-## Purpose
-
-Определяет постоянно доступную точку ввода штрихкода, соединённую с
-сценарной машиной без прямых доменных операций.
-
-## Requirements
-
-### Requirement: Persistent barcode entry point
-
-Экран SHALL отображать независимый компонент `BarcodeInput` перед сведениями о
-текущем заказе. Компонент SHALL постоянно рендерить enabled и focusable форму с
-одним доступно именованным input для штрихкода. В штатном режиме input SHALL
-быть визуально скрыт без `display: none`, атрибута `hidden` или `disabled`.
-
-#### Scenario: Hidden scanner input accepts a scan
-
-- **WHEN** форма открыта в штатном скрытом режиме и сканер вводит значение с
-  завершающим `Enter`
-- **THEN** input получает значение и форма обрабатывает нативный submit
+## MODIFIED Requirements
 
 ### Requirement: Technical submit before workflow integration
 

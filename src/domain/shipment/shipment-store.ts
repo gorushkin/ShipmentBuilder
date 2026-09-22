@@ -96,9 +96,11 @@ export class ShipmentStore {
       ) + 1
     const suffix = String(sequence).padStart(3, '0')
     const transportPlace: TransportPlace = {
+      barcode: `TM${sequence}`,
       id: `${this.data.order.id}-TP-${suffix}`,
       number: `ТМ-${suffix}`,
       orderId: this.data.order.id,
+      scanBarcode: `TM${sequence}`,
       sequence,
     }
 

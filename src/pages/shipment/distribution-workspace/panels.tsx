@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShipmentStore } from '@/domain/shipment/shipment-store'
+import type { ScanMachine } from '@/features/scan-machine'
 import {
   containerRows,
   filteredSourceRows,
@@ -91,9 +92,21 @@ function DestinationModeSelect({ store }: { store: ShipmentStore }) {
   )
 }
 
-function CreateTransportPlaceAction({ store }: { store: ShipmentStore }) {
+function CreateTransportPlaceAction({
+  scanMachine,
+  store,
+}: {
+  scanMachine: ScanMachine
+  store: ShipmentStore
+}) {
   return (
-    <Button size="sm" onClick={() => store.createTransportPlace()}>
+    <Button
+      size="sm"
+      onClick={() => {
+        const transportPlace = store.createTransportPlace()
+        scanMachine.mouseTransportPlaceSelected(transportPlace.id)
+      }}
+    >
       <Plus />
       Создать ТМ
     </Button>
@@ -173,7 +186,13 @@ function TransportPlaceProductTableHeader() {
   )
 }
 
-export const SourcePanel = observer(function SourcePanel({ store }: { store: ShipmentStore }) {
+export const SourcePanel = observer(function SourcePanel({
+  scanMachine,
+  store,
+}: {
+  scanMachine: ScanMachine
+  store: ShipmentStore
+}) {
   const containerRowsList = containerRows(store)
   const productRowsList = productRows(store)
   const filteredRowsList = filteredSourceRows(store)
@@ -212,7 +231,10 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
             {filteredContainer && (
               <Button
                 aria-label="Снять фильтр контейнера"
-                onClick={() => store.clearSourceFilter()}
+                onClick={() => {
+                  store.clearSourceFilter()
+                  scanMachine.mouseFilterCleared()
+                }}
                 size="icon-sm"
                 variant="ghost"
               >
@@ -230,7 +252,10 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
             {filteredProduct && (
               <Button
                 aria-label="Снять фильтр товара"
-                onClick={() => store.clearSourceFilter()}
+                onClick={() => {
+                  store.clearSourceFilter()
+                  scanMachine.mouseFilterCleared()
+                }}
                 size="icon-sm"
                 variant="ghost"
               >
@@ -254,11 +279,15 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                       className="source-product-row"
                       data-active={isSelected}
                       key={row.id}
-                      onClick={() => store.selectSourceLine(row.id)}
+                      onClick={() => {
+                        store.selectSourceLine(row.id)
+                        scanMachine.mouseProductSelected(row.productId)
+                      }}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ' ') return
                         event.preventDefault()
                         store.selectSourceLine(row.id)
+                        scanMachine.mouseProductSelected(row.productId)
                       }}
                       tabIndex={0}
                     >
@@ -291,11 +320,15 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                       className="source-product-row"
                       data-active={isSelected}
                       key={row.id}
-                      onClick={() => store.selectProduct(row.id)}
+                      onClick={() => {
+                        store.selectProduct(row.id)
+                        scanMachine.mouseProductSelected(row.id)
+                      }}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ' ') return
                         event.preventDefault()
                         store.selectProduct(row.id)
+                        scanMachine.mouseProductSelected(row.id)
                       }}
                       tabIndex={0}
                     >
@@ -305,7 +338,12 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                       <TableCell>{number(row.boxes)}</TableCell>
                       <TableCell>{number(row.containers, 0)}</TableCell>
                       <TableCell>
-                        <FilterAction onClick={() => store.setProductFilter(row.id)} />
+                        <FilterAction
+                          onClick={() => {
+                            store.setProductFilter(row.id)
+                            scanMachine.mouseProductSelected(row.id)
+                          }}
+                        />
                       </TableCell>
                     </TableRow>
                   )
@@ -333,11 +371,15 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                     className="source-container-row"
                     data-active={isSelected}
                     key={row.id}
-                    onClick={() => store.selectContainer(row.id)}
+                    onClick={() => {
+                      store.selectContainer(row.id)
+                      scanMachine.mouseContainerSelected(row.id)
+                    }}
                     onKeyDown={(event) => {
                       if (event.key !== 'Enter' && event.key !== ' ') return
                       event.preventDefault()
                       store.selectContainer(row.id)
+                      scanMachine.mouseContainerSelected(row.id)
                     }}
                     tabIndex={0}
                   >
@@ -352,7 +394,12 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
                     <TableCell>{number(row.boxes)}</TableCell>
                     <TableCell>{number(row.volume, 4)}</TableCell>
                     <TableCell>
-                      <FilterAction onClick={() => store.setContainerFilter(row.id)} />
+                      <FilterAction
+                        onClick={() => {
+                          store.setContainerFilter(row.id)
+                          scanMachine.mouseContainerSelected(row.id)
+                        }}
+                      />
                     </TableCell>
                   </TableRow>
                 )
@@ -366,8 +413,10 @@ export const SourcePanel = observer(function SourcePanel({ store }: { store: Shi
 })
 
 export const DestinationPanel = observer(function DestinationPanel({
+  scanMachine,
   store,
 }: {
+  scanMachine: ScanMachine
   store: ShipmentStore
 }) {
   const rows = transportPlaceRows(store)
@@ -384,7 +433,7 @@ export const DestinationPanel = observer(function DestinationPanel({
           <Badge variant="secondary" className="count">
             {rowCount}
           </Badge>
-          <CreateTransportPlaceAction store={store} />
+          <CreateTransportPlaceAction scanMachine={scanMachine} store={store} />
         </div>
         <div className="panel-toolbar">
           <DestinationModeSelect store={store} />
@@ -450,11 +499,15 @@ export const DestinationPanel = observer(function DestinationPanel({
                       className="transport-place-row"
                       data-active={isActive}
                       key={row.id}
-                      onClick={() => store.selectTransportPlace(row.id)}
+                      onClick={() => {
+                        store.selectTransportPlace(row.id)
+                        scanMachine.mouseTransportPlaceSelected(row.id)
+                      }}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ' ') return
                         event.preventDefault()
                         store.selectTransportPlace(row.id)
+                        scanMachine.mouseTransportPlaceSelected(row.id)
                       }}
                       tabIndex={0}
                     >

@@ -2,12 +2,19 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ScanBarcode } from 'lucide-react'
+import { observer } from 'mobx-react-lite'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 import { BarcodeInputController } from './barcode-input-controller'
 import './barcode-input.css'
+
+interface BarcodeInputProps {
+  feedback: string
+  isProcessing: boolean
+  onCompleted: (value: string) => void
+}
 
 function isTextEntryTarget(target: EventTarget | null): boolean {
   return (
@@ -20,9 +27,14 @@ function hasOpenDialog(): boolean {
   return Boolean(document.querySelector('[data-slot="dialog-content"]'))
 }
 
-export function BarcodeInput() {
+export const BarcodeInput = observer(function BarcodeInput({
+  feedback,
+  isProcessing,
+  onCompleted,
+}: BarcodeInputProps) {
   const [controller] = useState(() => new BarcodeInputController())
-  const [isExpanded, setIsExpanded] = useState(false)
+  // TODO: make isExpanded false by default
+  const [isExpanded, setIsExpanded] = useState(true)
   const [value, setValue] = useState('')
 
   const focusInput = useCallback(
@@ -74,8 +86,7 @@ export function BarcodeInput() {
     setValue('')
 
     if (barcode) {
-      // eslint-disable-next-line no-console -- Первый этап требует технический лог завершённого ввода.
-      console.log('barcode completed', { timestamp: new Date().toISOString(), value: barcode })
+      onCompleted(barcode)
     }
 
     focusInput()
@@ -85,7 +96,7 @@ export function BarcodeInput() {
     <section className="barcode-input" aria-label="Сканирование штрихкода">
       <div className="barcode-input__status">
         <ScanBarcode aria-hidden="true" />
-        <span>Сканирование штрихкода</span>
+        <span>{isProcessing ? 'Обработка…' : feedback}</span>
       </div>
       <form className="barcode-input__form" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="barcode-input">
@@ -99,6 +110,7 @@ export function BarcodeInput() {
               : 'barcode-input__field barcode-input__field--hidden'
           }
           id="barcode-input"
+          disabled={isProcessing}
           onChange={(event) => setValue(event.target.value)}
           placeholder="Сканируйте или введите штрихкод"
           ref={(input) => controller.connect(input)}
@@ -120,4 +132,4 @@ export function BarcodeInput() {
       </Button>
     </section>
   )
-}
+})

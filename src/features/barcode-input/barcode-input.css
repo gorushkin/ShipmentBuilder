@@ -19,6 +19,10 @@
   white-space: nowrap;
 }
 
+.barcode-input:has(input:disabled) .barcode-input__status {
+  color: #64748b;
+}
+
 .barcode-input__status svg,
 .barcode-input button svg {
   width: 14px;

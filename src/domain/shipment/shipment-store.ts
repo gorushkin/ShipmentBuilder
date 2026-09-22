@@ -309,6 +309,24 @@ export class ShipmentStore {
     )
   }
 
+  get bulkSourceLines(): RemainingLine[] {
+    return this.filteredRemainingLines
+  }
+
+  get canDistributeBulkSourceLines(): boolean {
+    return Boolean(this.sourceFilter && this.bulkSourceLines.length > 0)
+  }
+
+  distributeBulkSourceLines(): void {
+    const lines = this.bulkSourceLines
+    if (!this.sourceFilter || lines.length === 0) {
+      throw new Error('Нет отфильтрованных строк для массового переноса')
+    }
+
+    this.allocateRemainingLines(lines)
+    this.clearSourceFilter()
+  }
+
   get canDistributeSelectedProduct(): boolean {
     if (this.sourceDisplayMode !== 'products' || !this.selectedProductId) return false
 
@@ -478,6 +496,33 @@ export class ShipmentStore {
         this.selectedTransportPlaceProductId
       )
     })
+  }
+
+  get bulkDestinationAllocationLines(): AllocationLine[] {
+    if (this.destinationDisplayMode !== 'transport-place-products' || !this.activeTransportPlaceId) {
+      return []
+    }
+    return this.data.allocationLines.filter(
+      (allocation) =>
+        allocation.transportPlaceId === this.activeTransportPlaceId && allocation.quantity > 0,
+    )
+  }
+
+  get canReturnBulkDestinationLines(): boolean {
+    return this.bulkDestinationAllocationLines.length > 0
+  }
+
+  returnBulkDestinationLines(): void {
+    const allocations = this.bulkDestinationAllocationLines
+    if (allocations.length === 0) {
+      throw new Error('Нет отфильтрованных строк для массового возврата')
+    }
+
+    const allocationIds = new Set(allocations.map((allocation) => allocation.id))
+    this.data.allocationLines = this.data.allocationLines.filter(
+      (allocation) => !allocationIds.has(allocation.id),
+    )
+    this.selectedTransportPlaceProductId = null
   }
 
   get partialReturnContext(): null | PartialQuantityContext {

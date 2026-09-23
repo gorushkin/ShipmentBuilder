@@ -3,7 +3,7 @@
   --primary-foreground: #fff;
   --ring: #245ad5;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
   gap: 16px;
   height: 100dvh;
   min-height: 600px;
@@ -29,19 +29,21 @@
   letter-spacing: 1.2px;
   color: #788497;
 }
-.page-header {
+.shipment-page .page-header {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) auto;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 24px;
   align-items: center;
 }
-.page-heading {
+.shipment-page .page-heading {
   display: grid;
   grid-template-columns: 44px auto;
   align-items: center;
   gap: 14px;
+  width: max-content;
+  max-width: 100%;
 }
-.app-icon {
+.shipment-page .app-icon {
   display: grid;
   place-items: center;
   width: 44px;
@@ -51,16 +53,22 @@
   background: #eaf0ff;
   color: #245ad5;
 }
-.order-actions {
-  display: grid;
-  grid-template-columns: repeat(4, auto);
+.shipment-page .order-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
-.disabled-control {
+.shipment-page .disabled-control {
   display: inline-grid;
   min-width: 0;
 }
-.disabled-control > button {
+.shipment-page .disabled-control > button {
   width: 100%;
 }
 .shipment-page button:disabled {
@@ -70,10 +78,11 @@
   border-color: #e0e5ee;
   cursor: not-allowed;
 }
-.order-actions button {
+.shipment-page .order-actions button {
   font-size: 11px;
+  white-space: nowrap;
 }
-.order-actions svg {
+.shipment-page .order-actions svg {
   width: 13px;
   height: 13px;
 }
@@ -173,7 +182,7 @@
 }
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 164px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 210px minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
   min-width: 0;
@@ -222,6 +231,14 @@
 .panel-toolbar .mode-control {
   width: 100%;
   max-width: 132px;
+}
+.source-filter-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #365487;
+  font-size: 11px;
 }
 .panel-toolbar [data-slot='select-trigger'] {
   width: 100%;
@@ -275,13 +292,17 @@
 }
 .transfer-actions {
   display: grid;
-  align-content: center;
+  align-content: flex-start;
   gap: 10px;
 }
 .transfer-actions > .eyebrow {
   text-align: center;
   margin-bottom: 4px;
   font-size: 9px;
+}
+.transfer-actions-list {
+  display: grid;
+  gap: 10px;
 }
 .shipment-page .transfer-button {
   display: grid;
@@ -294,6 +315,11 @@
   padding: 10px;
   gap: 8px;
   line-height: 1.5;
+}
+.shipment-page .future-action {
+  width: 100%;
+  min-height: 38px;
+  font-size: 11px;
 }
 .transfer-actions .return-action {
   margin-top: 12px;
@@ -415,5 +441,5 @@
 .transfer-actions {
   min-height: 0;
   overflow-y: auto;
-  align-content: safe center;
+  align-content: flex-start;
 }

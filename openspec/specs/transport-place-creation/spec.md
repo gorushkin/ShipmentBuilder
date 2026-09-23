@@ -8,11 +8,11 @@
 
 ### Requirement: Initial active transport place
 
-При открытии новой процедуры `ShipmentStore` SHALL автоматически создать ровно одно пустое транспортное место текущего заказа с sequence 1 и номером `ТМ-001`. Это место SHALL сразу стать активным. Автоматическая инициализация SHALL NOT создавать строки распределения или менять исходные строки, остатки и прогресс.
+При загрузке snapshot оркестратор SHALL выбирать первое существующее ТМ. Если snapshot не содержит ТМ, первое место SHALL создаваться при валидном переносе или явной команде ручного создания. Инициализация SHALL NOT менять исходные строки, остатки и прогресс.
 
 #### Scenario: Open a new procedure
 
-- **WHEN** пользователь открывает новую процедуру формирования ТМ для заказа с пустым начальным списком ТМ
+- **WHEN** пользователь открывает процедуру со snapshot, содержащим пустое ТМ-001
 - **THEN** store содержит пустое активное ТМ-001 с sequence 1
 - **AND** allocationLines пуст, remainingTotals совпадает с исходными итогами и distributionProgress равен 0
 
@@ -24,7 +24,7 @@
 
 ### Requirement: Local transport place creation
 
-`ShipmentStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального существующего sequence и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
+`ShipmentDataStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального существующего sequence и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
 
 #### Scenario: Create the first transport place
 
@@ -45,33 +45,44 @@
 
 ### Requirement: Active transport place
 
-`ShipmentStore` SHALL хранить ID активного транспортного места отдельно от `ShipmentData`. Созданное место SHALL автоматически становиться активным. Пользователь SHALL иметь возможность сделать активным другое существующее место, не меняя состав ТМ и распределение.
+`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter и режимы таблиц, очищать выбор товара назначения и SHALL NOT менять allocations.
 
 #### Scenario: Created place becomes active
 
-- **WHEN** пользователь создаёт новое транспортное место
-- **THEN** `activeTransportPlaceId` равен ID созданного места
+- **WHEN** пользователь создаёт ТМ вручную
+- **THEN** активный ID машины и data store равен ID созданного места
 
-#### Scenario: Select an existing place
+#### Scenario: Select an existing transport place by mouse or scanner
 
-- **WHEN** существуют `ТМ-001` и `ТМ-002`, а пользователь выбирает `ТМ-001`
-- **THEN** активным становится `ТМ-001`
-- **AND** оба транспортных места и allocationLines остаются без изменений
+- **WHEN** the user clicks a visible transport-place row or scans its barcode
+- **THEN** machine and `ShipmentDataStore` identify that place as active
+- **AND** source context and allocations remain unchanged
+
+#### Scenario: Unknown transport place preserves the active selection
+
+- **WHEN** a resolved transport-place ID is absent from `ShipmentDataStore`
+- **THEN** the orchestrator reports a typed selection error
+- **AND** the previous active transport place and source context remain unchanged
 
 ### Requirement: Created transport places presentation
 
-Правая панель SHALL показывать созданные транспортные места в порядке sequence. Каждая пустая строка SHALL отображать номер места и нулевые значения SKU, штук, коробов и объёма. Активное место SHALL иметь визуально различимое и доступное состояние выбора.
+Правая панель SHALL показывать транспортные места из `ShipmentDataStore` в
+порядке sequence. Каждая пустая строка SHALL отображать номер места и нулевые
+значения SKU, штук, коробов и объёма. Строка SHALL визуально обозначать active
+state тогда и только тогда, когда её ID совпадает с
+`ShipmentDataStore.activeTransportPlaceId`. Отсутствие active place SHALL NOT
+мешать рендерингу транспортных мест.
 
 #### Scenario: Empty state before creation
 
 - **WHEN** транспортных мест нет
 - **THEN** панель показывает сообщение «Транспортные места ещё не созданы»
 
-#### Scenario: Destination rows after creation
+#### Scenario: Destination rows after snapshot load
 
-- **WHEN** пользователь создал `ТМ-001` и `ТМ-002`
+- **WHEN** загруженный snapshot содержит `ТМ-001` и `ТМ-002` без распределений
 - **THEN** пустое сообщение скрыто, а таблица показывает две строки в порядке создания
-- **AND** у обеих строк отображаются нулевые показатели, `ТМ-002` отмечено активным
+- **AND** у обеих строк отображаются нулевые показатели; первое ТМ обозначено активным
 
 ### Requirement: Creation does not distribute goods
 

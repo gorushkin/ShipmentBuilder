@@ -10,14 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { PartialQuantityContext } from '@/domain/shipment/shipment-store'
+import type { Product } from '@/domain/shipment/types'
 import { number } from '@/pages/shipment/shared/format'
 
 type Direction = 'distribute' | 'return'
 
 interface PartialQuantityDialogProps {
-  context: PartialQuantityContext | null
+  context: { maximum: number; product: Product } | null
   direction: Direction | null
+  error?: string | null
   onConfirm: (quantity: number) => void
   onOpenChange: (open: boolean) => void
   open: boolean
@@ -26,6 +27,7 @@ interface PartialQuantityDialogProps {
 export function PartialQuantityDialog({
   context,
   direction,
+  error,
   onConfirm,
   onOpenChange,
   open,
@@ -34,14 +36,21 @@ export function PartialQuantityDialog({
 
   const quantity = Number(value)
   const isValid = Boolean(
-    context && /^\d+$/.test(value) && Number.isInteger(quantity) && quantity >= 1 && quantity <= context.maximum,
+    context &&
+    /^\d+$/.test(value) &&
+    Number.isInteger(quantity) &&
+    quantity >= 1 &&
+    quantity <= context.maximum,
   )
   const isReturn = direction === 'return'
   const title = isReturn ? 'Вернуть количество' : 'Переместить количество'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent
+        initialFocus={() => document.getElementById('partial-quantity')}
+        finalFocus={() => document.getElementById('barcode-input')}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -53,7 +62,8 @@ export function PartialQuantityDialog({
 
         {context?.product.isMarked && (
           <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            Подтверждение КМ/КА будет добавлено позже. Сейчас выполняется только количественная операция.
+            Подтверждение КМ/КА будет добавлено позже. Сейчас выполняется только количественная
+            операция.
           </p>
         )}
 
@@ -66,15 +76,22 @@ export function PartialQuantityDialog({
             max={context?.maximum}
             min={1}
             onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') return
+              event.preventDefault()
+              if (value.trim().toUpperCase() === 'CMD:CANCEL') onOpenChange(false)
+              else if (isValid) onConfirm(quantity)
+            }}
             placeholder="Введите количество"
             step={1}
-            type="number"
+            type="text"
             value={value}
           />
           <span className="text-sm font-normal text-muted-foreground" id="partial-quantity-hint">
             Только целые значения от 1 до {context ? number(context.maximum, 0) : '—'}.
           </span>
         </label>
+        {error && <p role="alert">{error}</p>}
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Отмена</DialogClose>

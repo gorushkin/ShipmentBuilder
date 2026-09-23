@@ -1,16 +1,18 @@
-.page-header {
+.shipment-page .page-header {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) auto;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 24px;
-  align-items: center;
+  align-items: flex-end;
 }
-.page-heading {
+.shipment-page .page-heading {
   display: grid;
   grid-template-columns: 44px auto;
   align-items: center;
   gap: 14px;
+  width: max-content;
+  max-width: 100%;
 }
-.app-icon {
+.shipment-page .app-icon {
   display: grid;
   place-items: center;
   width: 44px;
@@ -20,26 +22,36 @@
   background: #eaf0ff;
   color: #245ad5;
 }
-.order-actions {
-  display: grid;
-  grid-template-columns: repeat(4, auto);
+.shipment-page .order-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
-.order-actions button {
+.shipment-page .order-actions > * {
+  flex: 0 0 auto;
+}
+.shipment-page .order-actions button {
   font-size: 11px;
+  white-space: nowrap;
 }
-.order-actions svg {
+.shipment-page .order-actions svg {
   width: 13px;
   height: 13px;
 }
 @media (max-width: 1300px) {
-  .page-header {
+  .shipment-page .page-header {
     gap: 12px;
   }
-  .order-actions {
+  .shipment-page .order-actions {
     gap: 6px;
   }
-  .order-actions button {
+  .shipment-page .order-actions button {
     padding-inline: 7px;
   }
 }

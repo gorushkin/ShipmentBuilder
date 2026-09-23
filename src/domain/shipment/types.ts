@@ -4,6 +4,7 @@ export interface Product {
   id: string
   isMarked: boolean
   name: string
+  scanBarcode: string
   unitsPerBox: number
   unitVolumeM3: number
   unitWeightKg: number
@@ -20,6 +21,7 @@ export interface PickingContainer {
   barcode: string
   id: string
   orderId: string
+  scanBarcode: string
 }
 
 export interface SourceLine {
@@ -31,9 +33,11 @@ export interface SourceLine {
 }
 
 export interface TransportPlace {
+  barcode: string
   id: string
   number: string
   orderId: string
+  scanBarcode: string
   sequence: number
 }
 

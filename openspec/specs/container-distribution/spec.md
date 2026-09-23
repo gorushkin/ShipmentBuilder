@@ -8,18 +8,30 @@
 
 ### Requirement: Source container selection
 
-`ShipmentStore` SHALL хранить ID выбранного исходного контейнера отдельно от `ShipmentData`. Пользователь SHALL иметь возможность выбрать ровно один отображаемый контейнер с положительным остатком. Выбор SHALL NOT изменять исходные данные, распределения или активное ТМ.
+Первое сканирование контейнера или выбор строки мышью SHALL обновлять `ScanMachine` через typed event; `ScannerWorkflowOrchestrator` SHALL применить соответствующий source filter и режим таблицы. Сам выбор SHALL NOT менять allocations. Повторный скан выбранного контейнера SHALL запустить перенос его остатка через оркестратор.
 
-#### Scenario: Select a container
+#### Scenario: Select a source container by mouse or scanner
 
-- **WHEN** пользователь выбирает отображаемый контейнер N00001
-- **THEN** `selectedContainerId` указывает на N00001
-- **AND** остатки, распределения и активное ТМ не изменяются
+- **WHEN** the user clicks a visible source container row or scans its barcode
+- **THEN** `ScanMachine` stores the same container ID and orchestrator applies that container filter
+- **AND** the source table switches to products for that container without changing allocations or active transport place
 
-#### Scenario: Replace the selection
+#### Scenario: Continue a mouse-selected container with a scan
 
-- **WHEN** выбран N00001 и пользователь выбирает N00002
-- **THEN** выбранным становится только N00002
+- **WHEN** пользователь выбирает C1 мышью, затем сканирует товар P1
+- **THEN** машина сохраняет container context C1 и выбирает P1 within C1
+- **AND** orchestrator сохраняет фильтр C1 и переносит положительный остаток P1 только из C1
+
+#### Scenario: Re-scan selected container
+
+- **WHEN** машина уже выбрала C1 и получает повторный scan C1
+- **THEN** container context and filter C1 remain active
+- **AND** orchestrator переносит положительный остаток C1 в активное ТМ
+
+#### Scenario: Legacy selection capability remains available
+
+- **WHEN** пользователь выбирает контейнер мышью
+- **THEN** распределение не меняется до команды или повторного скана
 
 ### Requirement: Automatically prepare a transport place for transfer
 
@@ -74,13 +86,13 @@
 
 ### Requirement: State after successful distribution
 
-После успешного распределения полностью распределённый контейнер SHALL отсутствовать в представлении контейнеров к распределению, `selectedContainerId` SHALL быть сброшен, а активное ТМ SHALL сохраниться. Итоги активного ТМ, остатки заказа и прогресс SHALL отражать созданные распределения.
+После успешного распределения полностью распределённый контейнер SHALL отсутствовать в представлении контейнеров к распределению, source filter SHALL сохраниться даже при пустом результате, а активное ТМ SHALL сохраниться. Итоги активного ТМ, остатки заказа и прогресс SHALL отражать созданные распределения.
 
 #### Scenario: Move N00001 to an empty transport place
 
 - **WHEN** пользователь перемещает все 15 штук N00001 в пустое ТМ-001
 - **THEN** N00001 не отображается слева, а ТМ-001 показывает 2 SKU и 15 штук
-- **AND** остаток заказа уменьшается до 29 штук, прогресс равен `15 / 44 × 100`, выбор контейнера сброшен и ТМ-001 остаётся активным
+- **AND** остаток заказа уменьшается до 29 штук, прогресс равен `15 / 44 × 100`, фильтр контейнера сохранён и ТМ-001 остаётся активным
 
 ### Requirement: Marking data is deferred
 

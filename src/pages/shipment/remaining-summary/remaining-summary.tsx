@@ -1,12 +1,8 @@
 import { observer } from 'mobx-react-lite'
 
-import type { ShipmentStore } from '@/domain/shipment/shipment-store'
+import { scannerWorkflowOrchestrator as store } from '@/features/scanner-workflow'
 import { Metrics } from '@/pages/shipment/summary'
-export const RemainingSummary = observer(function RemainingSummary({
-  store,
-}: {
-  store: ShipmentStore
-}) {
+export const RemainingSummary = observer(function RemainingSummary() {
   return (
     <footer className="remaining-summary">
       <div>

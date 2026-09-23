@@ -8,40 +8,69 @@
 
 ### Requirement: Mutually exclusive source filters
 
-`ShipmentStore` SHALL хранить не более одного активного фильтра источника: по контейнеру, по товару либо без фильтра. Установка фильтра контейнера SHALL снимать фильтр товара, а установка фильтра товара SHALL снимать фильтр контейнера. Смена или очистка фильтра SHALL сбрасывать выбор строки источника.
+`ShipmentDataStore` SHALL хранить не более одного applied source filter: по контейнеру, по товару либо без фильтра. Для пользовательского выбора источника `ScanMachine` SHALL быть источником workflow context, а `ScannerWorkflowOrchestrator` SHALL отражать этот context в `ShipmentDataStore`. Таблицы SHALL NOT вызывать filter methods напрямую. Замена или очистка фильтра SHALL обновлять соответствующий machine selection через typed user action, не меняя allocations или active transport place.
 
-#### Scenario: Replace a container filter with a product filter
+#### Scenario: Replace a product filter with another product filter
 
-- **WHEN** активен фильтр контейнера N00001 и пользователь включает фильтр товара P1
-- **THEN** активным становится только фильтр P1
-- **AND** выбор контейнера и товара для переноса сброшен
+- **WHEN** пользователь сканирует P2 при активном product filter P1 и без container context
+- **THEN** машина устанавливает product context P2, а orchestrator заменяет filter P1 на product filter P2
+- **AND** allocations и active transport place не меняются
+
+#### Scenario: Clear a source filter
+
+- **WHEN** пользователь очищает активный source filter через действие интерфейса
+- **THEN** действие проходит через `ScanMachine`, а orchestrator вызывает `ShipmentDataStore.clearSourceFilter()`
+- **AND** active transport place и allocations остаются без изменений
 
 ### Requirement: Mouse filter controls and indicators
 
-Левая область SHALL давать отдельное компактное действие для включения фильтра в каждой применимой строке контейнеров или товаров. Поля «Контейнер» и «Товар» SHALL отображать выбранный фильтр и действие его очистки, но SHALL NOT быть селекторами значений.
+Строки контейнеров и товаров SHALL быть действиями выбора сущности. Клик SHALL передавать тип и ID в `ScannerWorkflowOrchestrator`, который направляет typed mouse event в `ScanMachine`; таблица SHALL NOT устанавливать фильтр напрямую. Панель SHALL показывать текущий фильтр и действие его очистки. Отображаемый режим таблицы SHALL оставаться отдельным от filter context.
 
-#### Scenario: Activate and clear a container filter
+#### Scenario: Select and clear a container filter
 
-- **WHEN** пользователь нажимает действие фильтра в строке N00001
-- **THEN** панель показывает индикатор «Контейнер: N00001» и только остатки товаров N00001
-- **AND** пользователь может снять фильтр действием очистки в индикаторе
+- **WHEN** пользователь выбирает строку N00001 мышью
+- **THEN** панель показывает фильтр «Контейнер: N00001» и orchestrator отображает товары N00001
+- **AND** пользователь может очистить фильтр действием в индикаторе, которое проходит через машину
+
+#### Scenario: Select a product under a container filter
+
+- **WHEN** активен фильтр N00001 и пользователь выбирает P1 в проекции товаров
+- **THEN** машина получает product selection с контекстом N00001
+- **AND** фильтр остаётся «Контейнер: N00001»
 
 ### Requirement: Filtered source rows
 
-При фильтре контейнера левая область SHALL показывать только положительные остатки товаров выбранного контейнера. При фильтре товара она SHALL показывать отдельную строку этого товара для каждого контейнера с положительным остатком. Каждая отфильтрованная строка SHALL быть связана с конкретным `sourceLineId`.
+Source projections SHALL использовать только положительные остатки `ShipmentDataStore.remainingLines` и SHALL применять source filter, сохраняя тип строк текущего display mode. В режиме «Товары» строки SHALL оставаться агрегированными по `productId`: container filter ограничивает агрегацию выбранным контейнером, а product filter оставляет один агрегированный SKU по всем контейнерам. В режиме «Контейнеры» container filter оставляет выбранный контейнер, а product filter оставляет контейнеры с положительным остатком выбранного товара. Фильтрация SHALL NOT создавать отдельный третий table mode.
 
-#### Scenario: Display a product across containers
+#### Scenario: Show products within a selected container
 
-- **WHEN** активен фильтр P1, а остаток P1 равен 10 штук в N00001 и 15 штук в N00002
-- **THEN** слева отображаются две строки P1: для N00001 с 10 штуками и для N00002 с 15 штуками
+- **WHEN** активен фильтр N00001 и source display mode равен «Товары»
+- **THEN** отображаются только агрегированные строки товаров с положительным остатком в N00001
+- **AND** остатки тех же товаров в других контейнерах не включаются
+
+#### Scenario: Show a product across containers
+
+- **WHEN** активен фильтр P1 и source display mode равен «Товары», а P1 имеет положительные остатки в N00001 и N00002
+- **THEN** отображается одна агрегированная строка P1 с общим остатком и количеством контейнеров «2»
 - **AND** строки других товаров не отображаются
+
+#### Scenario: Filter container rows by product
+
+- **WHEN** активен фильтр P1 и source display mode равен «Контейнеры»
+- **THEN** отображаются только контейнеры с положительным остатком P1
+- **AND** тип строк остаётся контейнерами
 
 ### Requirement: Filter state is ready for scanner input
 
-Методы включения и очистки фильтра SHALL быть независимы от UI-события, чтобы будущий сканер контейнера или товара мог вызвать те же переходы состояния. Этот change SHALL NOT добавлять поле сканирования или обработку штрихкодов.
+Filter transitions SHALL be independent of input origin. Typed scan events and mouse selections SHALL проходить через общие переходы `ScanMachine`; orchestrator SHALL synchronously apply the resulting filter state to `ShipmentDataStore`. `BarcodeInputAdapter` SHALL remain responsible for resolving raw input and SHALL NOT call table or filter methods directly. An unknown scan SHALL NOT change the current filter or selection context.
 
-#### Scenario: Filter state without scanning
+#### Scenario: Scanner and mouse produce the same filter
 
-- **WHEN** пользователь включает фильтр мышью
-- **THEN** состояние фильтра не зависит от компонента, которым инициировано действие
-- **AND** обработка сканирования не запускается
+- **WHEN** пользователь сканирует C1 или выбирает строку C1 мышью
+- **THEN** в обоих случаях machine context становится container C1, а store получает filter C1
+
+#### Scenario: Unknown scan preserves filter
+
+- **WHEN** активен фильтр C1 и resolver не распознаёт введённый штрихкод
+- **THEN** машина сообщает ошибку распознавания
+- **AND** filter C1, выбранный контекст и allocations не меняются

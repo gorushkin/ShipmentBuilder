@@ -10,9 +10,9 @@ export function createDemoData(): ShipmentData {
     ],
     allocationLines: [],
     containers: [
-      { barcode: 'N00001', id: 'C1', orderId: 'ORD-001' },
-      { barcode: 'N00002', id: 'C2', orderId: 'ORD-001' },
-      { barcode: 'N00003', id: 'C3', orderId: 'ORD-001' },
+      { barcode: 'N00001', id: 'C1', orderId: 'ORD-001', scanBarcode: 'C1' },
+      { barcode: 'N00002', id: 'C2', orderId: 'ORD-001', scanBarcode: 'C2' },
+      { barcode: 'N00003', id: 'C3', orderId: 'ORD-001', scanBarcode: 'C3' },
     ],
     markingCodes: Array.from({ length: 12 }, (_, index) => {
       const number = index + 1
@@ -35,6 +35,7 @@ export function createDemoData(): ShipmentData {
         id: 'P1',
         isMarked: false,
         name: 'Розетка IP54',
+        scanBarcode: 'P1',
         unitsPerBox: 10,
         unitVolumeM3: 0.001,
         unitWeightKg: 0.2,
@@ -45,6 +46,7 @@ export function createDemoData(): ShipmentData {
         id: 'P2',
         isMarked: false,
         name: 'Выключатель',
+        scanBarcode: 'P2',
         unitsPerBox: 5,
         unitVolumeM3: 0.0005,
         unitWeightKg: 0.1,
@@ -55,6 +57,7 @@ export function createDemoData(): ShipmentData {
         id: 'P3',
         isMarked: true,
         name: 'Товар с маркировкой А',
+        scanBarcode: 'P3',
         unitsPerBox: 4,
         unitVolumeM3: 0.002,
         unitWeightKg: 0.5,
@@ -65,6 +68,7 @@ export function createDemoData(): ShipmentData {
         id: 'P4',
         isMarked: true,
         name: 'Товар с маркировкой Б',
+        scanBarcode: 'P4',
         unitsPerBox: 2,
         unitVolumeM3: 0.001,
         unitWeightKg: 0.25,
@@ -78,7 +82,16 @@ export function createDemoData(): ShipmentData {
       { containerId: 'C3', id: 'L5', productId: 'P2', quantity: 2 },
       { containerId: 'C3', id: 'L6', productId: 'P4', quantity: 4 },
     ],
-    transportPlaces: [],
+    transportPlaces: [
+      {
+        barcode: 'TM1',
+        id: 'ORD-001-TP-001',
+        number: 'ТМ-001',
+        orderId: 'ORD-001',
+        scanBarcode: 'TM1',
+        sequence: 1,
+      },
+    ],
   }
 }
 
@@ -103,6 +116,7 @@ export function createLargeDemoData(): ShipmentData {
       id: `P${suffix}`,
       isMarked: number % 10 === 0,
       name: `Тестовый товар ${suffix}`,
+      scanBarcode: `P${number}`,
       unitsPerBox: 10,
       unitVolumeM3: 0.001,
       unitWeightKg: 0.2,
@@ -111,7 +125,7 @@ export function createLargeDemoData(): ShipmentData {
   const containers = Array.from({ length: containerCount }, (_, index) => {
     const number = index + 1
     const suffix = String(number).padStart(3, '0')
-    return { barcode: `N-LARGE-${suffix}`, id: `C${suffix}`, orderId }
+    return { barcode: `N-LARGE-${suffix}`, id: `C${suffix}`, orderId, scanBarcode: `C${number}` }
   })
   const sourceLines = products.map((product, index) => {
     const suffix = String(index + 1).padStart(4, '0')
@@ -125,7 +139,14 @@ export function createLargeDemoData(): ShipmentData {
   const transportPlaces = Array.from({ length: transportPlaceCount }, (_, index) => {
     const number = index + 1
     const suffix = String(number).padStart(3, '0')
-    return { id: `${orderId}-TP-${suffix}`, number: `ТМ-${suffix}`, orderId, sequence: number }
+    return {
+      barcode: `TM${number}`,
+      id: `${orderId}-TP-${suffix}`,
+      number: `ТМ-${suffix}`,
+      orderId,
+      scanBarcode: `TM${number}`,
+      sequence: number,
+    }
   })
   const allocationLines = transportPlaces.map((transportPlace, index) => ({
     id: `${transportPlace.id}-L${String(index + 1).padStart(4, '0')}-allocation`,

@@ -20,6 +20,11 @@ export type ScanStep =
   | { kind: 'awaiting-quantity'; operation: Operation; transportPlaceId: string | null }
 export type ScanEffect = PendingOperation
 export type ScanFeedback = { kind: 'error' | 'info' | 'processing'; message: string }
+export type ScanIssue = {
+  code: 'barcode-unrecognized'
+  message: 'ШК не распознан'
+  type: 'error'
+}
 export type ScanErrorCode =
   | 'container-not-found'
   | 'product-not-found'
@@ -332,8 +337,15 @@ export class ScanMachine {
   private reject(message: string): void {
     this.feedback = { kind: 'error', message }
   }
-  barcodeUnknown(): void {
-    if (!this.isTransferring) this.reject('Штрихкод не распознан')
+  barcodeUnknown(): ScanIssue | null {
+    if (this.isTransferring) return null
+    const issue: ScanIssue = {
+      code: 'barcode-unrecognized',
+      message: 'ШК не распознан',
+      type: 'error',
+    }
+    this.reject(issue.message)
+    return issue
   }
   mouseContainerSelected(containerId: string): void {
     this.send({ containerId, type: 'mouse-container-selected' })

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 import { observer } from 'mobx-react-lite'
 
+import { Toaster } from '@/components/ui/toast'
 import { getActionPanelStatus } from '@/features/action-panel-status'
 import { BarcodeInput } from '@/features/barcode-input'
 import {
@@ -30,18 +31,21 @@ export const ShipmentPage = observer(function ShipmentPage() {
     step: scanMachine.step,
   })
   return (
-    <main className="shipment-page">
-      <ShipmentHeader />
-      <BarcodeInput
-        actionStatus={actionStatus}
-        isProcessing={scanMachine.isTransferring}
-        onCancel={() => scannerWorkflowOrchestrator.command('cancel')}
-        onCompleted={(value) => barcodeInputAdapter.submit(value)}
-      />
-      <OrderSummary />
-      <DistributionStatus />
-      <DistributionWorkspace />
-      <RemainingSummary />
-    </main>
+    <>
+      <main className="shipment-page">
+        <ShipmentHeader />
+        <BarcodeInput
+          actionStatus={actionStatus}
+          isProcessing={scanMachine.isTransferring}
+          onCancel={() => scannerWorkflowOrchestrator.command('cancel')}
+          onCompleted={(value) => barcodeInputAdapter.submit(value)}
+        />
+        <OrderSummary />
+        <DistributionStatus />
+        <DistributionWorkspace />
+        <RemainingSummary />
+      </main>
+      <Toaster />
+    </>
   )
 })

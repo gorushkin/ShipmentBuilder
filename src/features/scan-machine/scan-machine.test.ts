@@ -62,6 +62,23 @@ describe('ScanMachine operation lifecycle', () => {
     expect(m.step).toMatchObject({ kind: 'product-selected', productId: 'P1' })
   })
 
+  it('returns an issue for an unknown barcode unless a transfer is in progress', () => {
+    const m = new ScanMachine()
+
+    expect(m.barcodeUnknown()).toEqual({
+      code: 'barcode-unrecognized',
+      message: 'ШК не распознан',
+      type: 'error',
+    })
+    expect(m.feedback).toEqual({ kind: 'error', message: 'ШК не распознан' })
+
+    m.mouseContainerSelected('C1')
+    m.send({ containerId: 'C1', type: 'container-scanned' })
+    expect(m.isTransferring).toBe(true)
+    expect(m.barcodeUnknown()).toBeNull()
+    expect(m.feedback).toEqual({ kind: 'processing', message: 'Обработка…' })
+  })
+
   it('preserves source context while acquiring a return product', () => {
     const m = new ScanMachine()
     m.mouseContainerSelected('C1')

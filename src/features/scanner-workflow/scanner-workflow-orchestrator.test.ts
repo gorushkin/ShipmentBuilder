@@ -188,6 +188,32 @@ describe('ScannerWorkflowOrchestrator', () => {
     orchestrator.dispose()
   })
 
+  it('publishes one alert for an unknown barcode and ignores it while transferring', () => {
+    const alerts = { publish: vi.fn() }
+    const machine = new ScanMachine()
+    const orchestrator = new ScannerWorkflowOrchestrator(
+      machine,
+      new ShipmentDataStore(),
+      () => Promise.resolve(createDemoData()),
+      alerts,
+    )
+
+    orchestrator.barcodeUnknown()
+    expect(alerts.publish).toHaveBeenCalledOnce()
+    expect(alerts.publish).toHaveBeenCalledWith({
+      code: 'barcode-unrecognized',
+      message: 'ШК не распознан',
+      type: 'error',
+    })
+    expect(machine.feedback).toEqual({ kind: 'error', message: 'ШК не распознан' })
+
+    machine.mouseContainerSelected('C1')
+    machine.send({ containerId: 'C1', type: 'container-scanned' })
+    orchestrator.barcodeUnknown()
+    expect(alerts.publish).toHaveBeenCalledOnce()
+    expect(machine.feedback).toEqual({ kind: 'processing', message: 'Обработка…' })
+  })
+
   it('replaces a product filter and returns empty projections after its remainder reaches zero', async () => {
     const dataStore = new ShipmentDataStore()
     const machine = new ScanMachine()

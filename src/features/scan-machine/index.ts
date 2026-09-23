@@ -9,6 +9,7 @@ export type {
   ScanEvent,
   ScanFeedback,
   ScanSelection,
+  ScanIssue,
   ScanSourceContext,
   ScanStep,
 } from './scan-machine'

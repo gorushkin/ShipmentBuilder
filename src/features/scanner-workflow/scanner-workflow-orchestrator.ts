@@ -2,6 +2,7 @@ import { action, makeObservable, observable, reaction, type IReactionDisposer } 
 
 import { ShipmentDataStore } from '@/domain/shipment/shipment-data-store'
 import type { ShipmentData } from '@/domain/shipment/types'
+import { noopAlertService, type AlertService } from '@/features/application-alerts'
 import { ScanMachine, type ResolvedScanEvent, type ScanEvent } from '@/features/scan-machine'
 import type {
   Operation,
@@ -27,15 +28,22 @@ export class ScannerWorkflowOrchestrator {
   private readonly dataStore: ShipmentDataStore
   private readonly loader: ShipmentSnapshotLoader
   private readonly machine: ScanMachine
+  private readonly alerts: AlertService
   private started = false
   private lifecycleId = 0
   private lastExecutedId: string | null = null
   sourceMode: SourceTableMode = 'containers'
 
-  constructor(machine: ScanMachine, dataStore: ShipmentDataStore, loader: ShipmentSnapshotLoader) {
+  constructor(
+    machine: ScanMachine,
+    dataStore: ShipmentDataStore,
+    loader: ShipmentSnapshotLoader,
+    alerts: AlertService = noopAlertService,
+  ) {
     this.machine = machine
     this.dataStore = dataStore
     this.loader = loader
+    this.alerts = alerts
     makeObservable(this, {
       setSourceMode: action,
       sourceMode: observable,
@@ -315,7 +323,8 @@ export class ScannerWorkflowOrchestrator {
   }
 
   barcodeUnknown(): void {
-    this.machine.barcodeUnknown()
+    const issue = this.machine.barcodeUnknown()
+    if (issue) this.alerts.publish(issue)
   }
 
   send(event: ResolvedScanEvent): void {

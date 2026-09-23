@@ -19,6 +19,27 @@
 - **WHEN** мышью выбрана L3
 - **THEN** машина сохраняет её ID для следующей операции
 
+### Requirement: One-shot unknown-barcode issue
+
+При неизвестном штрихкоде вне состояния transferring `ScanMachine` SHALL
+установить error feedback с текстом «ШК не распознан» и вернуть одноразовый
+typed `ScanIssue` с кодом `barcode-unrecognized`, type `error` и тем же
+текстом. Пока машина transferring, этот путь SHALL вернуть null и SHALL NOT
+создавать issue или менять feedback.
+
+#### Scenario: Unknown barcode while ready
+
+- **WHEN** workflow сообщает машине о неизвестном штрихкоде в устойчивом
+  состоянии
+- **THEN** машина возвращает issue `barcode-unrecognized` и feedback
+  «ШК не распознан»
+
+#### Scenario: Unknown barcode while busy
+
+- **WHEN** workflow сообщает машине о неизвестном штрихкоде во время
+  transferring
+- **THEN** машина не возвращает issue и сохраняет processing feedback
+
 ### Requirement: Container and product scan transitions
 
 Первый скан C SHALL выбирать контейнер. Повторный скан выбранного C SHALL запускать transfer-container. Скан P при container filter SHALL запускать transfer-product-from-container; без container filter первый скан выбирает P, повторный запускает transfer-next-product-line. Явно выбранная совпадающая sourceLine SHALL иметь приоритет. Операции SHALL переходить в transferring с pending effect.

@@ -243,7 +243,6 @@ export const TransferActions = observer(function TransferActions() {
 
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
-      <span className="eyebrow">ПЕРЕМЕЩЕНИЕ</span>
       <div className="transfer-actions-list">
         {transferActions.map(renderAction)}
         <UnavailableButton className="future-action" variant="outline">

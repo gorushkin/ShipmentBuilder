@@ -6,7 +6,7 @@ import './distribution-status.css'
 export function DistributionStatus() {
   return (
     <Alert className="guidance" role="status">
-      <CheckCircle2 aria-hidden="true" />
+      <CheckCircle2 aria-hidden="true" className="row-span-1! translate-y-0!" />
       <AlertTitle>Заказ проверен.</AlertTitle>
       <AlertDescription>Товары ожидают распределения</AlertDescription>
     </Alert>

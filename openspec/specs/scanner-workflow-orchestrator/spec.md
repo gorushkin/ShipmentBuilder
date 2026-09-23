@@ -17,7 +17,7 @@ SHALL остановить subscription и запретить позднему l
 правой таблиц; методы SHALL возвращать строки запрошенного режима. Режим левой
 таблицы SHALL храниться в оркестраторе, режим правой — локально в панели.
 Проекции SHALL строиться из `ShipmentDataStore` с учётом активного фильтра и
-SHALL NOT читать старый `ShipmentStore` или менять распределения. Таблицы и страница SHALL использовать один
+SHALL NOT менять распределения. Таблицы и страница SHALL использовать один
 общий экземпляр оркестратора и его store.
 
 #### Scenario: Load demo data for table rendering on start
@@ -29,7 +29,7 @@ SHALL NOT читать старый `ShipmentStore` или менять расп
 #### Scenario: Project source rows by source mode
 - **WHEN** левая панель запрашивает строки в режиме «Контейнеры» или «Товары»
 - **THEN** orchestrator возвращает агрегированные контейнеры; в режиме товаров — отдельные sourceLines при фильтре, иначе агрегированные товары из положительных остатков
-- **AND** результат не содержит строки другого режима и не зависит от старого `ShipmentStore`
+- **AND** результат не содержит строки другого режима
 
 #### Scenario: Project destination rows by local mode
 - **WHEN** правая панель запрашивает строки в режиме «Контейнеры ТМ» или «Товары ТМ»
@@ -39,7 +39,6 @@ SHALL NOT читать старый `ShipmentStore` или менять расп
 #### Scenario: Projection before snapshot is loaded
 - **WHEN** таблица запрашивает проекцию до загрузки snapshot-а
 - **THEN** orchestrator возвращает пустой список выбранного режима
-- **AND** не подменяет результат данными старого `ShipmentStore`
 
 #### Scenario: Dispose prevents late snapshot updates
 - **WHEN** страница останавливает orchestrator до завершения loader-а

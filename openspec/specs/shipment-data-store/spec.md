@@ -10,11 +10,11 @@
 ### Requirement: Isolated shipment snapshot lifecycle
 
 Система SHALL предоставлять реактивный `ShipmentDataStore`, независимый от
-React, `ShipmentStore`, `ScanMachine`, `BarcodeInput` и
-`ScannerWorkflowOrchestrator`. Новый store SHALL начинаться без загруженного
-заказа и принимать `ShipmentData` только через `setSnapshot(snapshot)`. Метод
-SHALL копировать вложенные collections, атомарно заменять прежние данные и
-сбрасывать source filter и active transport place ID.
+React, `ScanMachine`, `BarcodeInput` и `ScannerWorkflowOrchestrator`. Новый
+store SHALL начинаться без загруженного заказа и принимать `ShipmentData` только
+через `setSnapshot(snapshot)`. Метод SHALL копировать вложенные collections,
+атомарно заменять прежние данные и сбрасывать source filter и active transport
+place ID.
 
 #### Scenario: Replace an existing shipment snapshot
 

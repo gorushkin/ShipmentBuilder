@@ -198,12 +198,6 @@ export const DestinationPanel = observer(function DestinationPanel() {
         </div>
         <div className="panel-toolbar">
           <DestinationModeSelect mode={mode} onModeChange={setMode} />
-          <UnavailableButton variant="outline" size="sm">
-            PAL
-          </UnavailableButton>
-          <UnavailableButton variant="outline" size="sm">
-            MIX
-          </UnavailableButton>
         </div>
       </header>
       <div className="table-scroll destination-scroll">{destinationTable}</div>
@@ -220,29 +214,46 @@ export const TransferActions = observer(function TransferActions() {
         ? 'return'
         : 'distribute'
       : null
-  const actions = [
+
+  const transferActions = [
     [workflow.selectedTransferCommand, 'Переместить строку'],
     ['transfer-filtered', 'Переместить всё по фильтру'],
     ['request-transfer-quantity', 'Переместить количество'],
+  ] as const
+
+  const returnActions = [
     ['return-product', 'Вернуть товар'],
     ['request-return-quantity', 'Вернуть количество'],
     ['return-transport-place', 'Вернуть всё из ТМ'],
   ] as const
+
+  const renderAction = ([command, label]:
+    (typeof transferActions)[number] | (typeof returnActions)[number]) => (
+    <Button
+      key={command}
+      variant="outline"
+      className="transfer-button"
+      disabled={!workflow.canCommand(command)}
+      onClick={() => workflow.command(command)}
+    >
+      {command.includes('return') ? <ArrowLeft /> : <ArrowRight />}
+      <span>{label}</span>
+    </Button>
+  )
+
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
       <span className="eyebrow">ПЕРЕМЕЩЕНИЕ</span>
-      {actions.map(([command, label]) => (
-        <Button
-          key={command}
-          variant="outline"
-          className="transfer-button"
-          disabled={!workflow.canCommand(command)}
-          onClick={() => workflow.command(command)}
-        >
-          {command.includes('return') ? <ArrowLeft /> : <ArrowRight />}
-          <span>{label}</span>
-        </Button>
-      ))}
+      <div className="transfer-actions-list">
+        {transferActions.map(renderAction)}
+        <UnavailableButton className="future-action" variant="outline">
+          PAL
+        </UnavailableButton>
+        <UnavailableButton className="future-action" variant="outline">
+          MIX
+        </UnavailableButton>
+        {returnActions.map(renderAction)}
+      </div>
       {workflow.isWaiting && (
         <Button variant="outline" onClick={() => workflow.command('cancel')}>
           Отмена

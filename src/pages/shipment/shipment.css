@@ -182,7 +182,7 @@
 }
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 164px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 210px minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
   min-width: 0;
@@ -292,13 +292,17 @@
 }
 .transfer-actions {
   display: grid;
-  align-content: center;
+  align-content: flex-start;
   gap: 10px;
 }
 .transfer-actions > .eyebrow {
   text-align: center;
   margin-bottom: 4px;
   font-size: 9px;
+}
+.transfer-actions-list {
+  display: grid;
+  gap: 10px;
 }
 .shipment-page .transfer-button {
   display: grid;
@@ -311,6 +315,11 @@
   padding: 10px;
   gap: 8px;
   line-height: 1.5;
+}
+.shipment-page .future-action {
+  width: 100%;
+  min-height: 38px;
+  font-size: 11px;
 }
 .transfer-actions .return-action {
   margin-top: 12px;
@@ -432,5 +441,5 @@
 .transfer-actions {
   min-height: 0;
   overflow-y: auto;
-  align-content: safe center;
+  align-content: flex-start;
 }

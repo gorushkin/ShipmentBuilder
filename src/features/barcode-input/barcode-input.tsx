@@ -13,6 +13,7 @@ import './barcode-input.css'
 interface BarcodeInputProps {
   feedback: string
   isProcessing: boolean
+  onCancel?: () => void
   onCompleted: (value: string) => void
 }
 
@@ -30,6 +31,7 @@ function hasOpenDialog(): boolean {
 export const BarcodeInput = observer(function BarcodeInput({
   feedback,
   isProcessing,
+  onCancel,
   onCompleted,
 }: BarcodeInputProps) {
   const [controller] = useState(() => new BarcodeInputController())
@@ -38,16 +40,20 @@ export const BarcodeInput = observer(function BarcodeInput({
   const [value, setValue] = useState('')
 
   const focusInput = useCallback(
-    () => window.requestAnimationFrame(() => controller.focus()),
+    () =>
+      window.requestAnimationFrame(() => {
+        if (!hasOpenDialog()) controller.focus()
+      }),
     [controller],
   )
 
   useEffect(() => {
     focusInput()
-  }, [focusInput])
+  }, [focusInput, isProcessing])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !hasOpenDialog()) onCancel?.()
       if (event.key === 'F2' && !isTextEntryTarget(event.target)) {
         event.preventDefault()
         setIsExpanded(true)
@@ -64,7 +70,7 @@ export const BarcodeInput = observer(function BarcodeInput({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [controller, focusInput, isExpanded])
+  }, [controller, focusInput, isExpanded, onCancel])
 
   useEffect(() => {
     function handleDocumentClick(event: MouseEvent) {

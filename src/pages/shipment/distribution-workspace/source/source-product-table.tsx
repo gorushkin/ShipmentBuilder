@@ -30,7 +30,7 @@ export function SourceProductTable({
   rows,
   selectedProductId,
 }: {
-  onSelect: (productId: string) => void
+  onSelect: (row: SourceProductTableRow) => void
   rows: SourceProductTableRow[]
   selectedProductId: null | string
 }) {
@@ -55,11 +55,11 @@ export function SourceProductTable({
             className="source-product-row"
             data-active={selectedProductId === row.id}
             key={row.id}
-            onClick={() => onSelect(row.id)}
+            onClick={() => onSelect(row)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
-                onSelect(row.id)
+                onSelect(row)
               }
             }}
             tabIndex={0}
@@ -68,7 +68,7 @@ export function SourceProductTable({
             <TableCell>{row.name}</TableCell>
             <TableCell>{number(row.units, 0)}</TableCell>
             <TableCell>{number(row.boxes)}</TableCell>
-            <TableCell>{number(row.containers, 0)}</TableCell>
+            <TableCell>{row.containerName ?? number(row.containers, 0)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

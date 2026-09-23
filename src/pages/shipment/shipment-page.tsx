@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 import { observer } from 'mobx-react-lite'
 
-import { ShipmentStore } from '@/domain/shipment/shipment-store'
 import { BarcodeInput } from '@/features/barcode-input'
 import {
   barcodeInputAdapter,
   scanMachine,
   scannerWorkflowOrchestrator,
-  shipmentDemoData,
 } from '@/features/scanner-workflow'
 
 import { DistributionStatus } from './distribution-status'
@@ -19,7 +17,6 @@ import { ShipmentHeader } from './shipment-header'
 import './shipment.css'
 
 export const ShipmentPage = observer(function ShipmentPage() {
-  const [store] = useState(() => new ShipmentStore(shipmentDemoData))
   useEffect(() => {
     scannerWorkflowOrchestrator.start()
     return () => scannerWorkflowOrchestrator.dispose()
@@ -30,12 +27,13 @@ export const ShipmentPage = observer(function ShipmentPage() {
       <BarcodeInput
         feedback={scanMachine.feedback.message}
         isProcessing={scanMachine.isTransferring}
+        onCancel={() => scannerWorkflowOrchestrator.command('cancel')}
         onCompleted={(value) => barcodeInputAdapter.submit(value)}
       />
-      <OrderSummary store={store} />
+      <OrderSummary />
       <DistributionStatus />
-      <DistributionWorkspace store={store} />
-      <RemainingSummary store={store} />
+      <DistributionWorkspace />
+      <RemainingSummary />
     </main>
   )
 })

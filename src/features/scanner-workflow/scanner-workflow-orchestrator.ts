@@ -3,6 +3,12 @@ import { action, makeObservable, observable, reaction, type IReactionDisposer } 
 import { ShipmentDataStore } from '@/domain/shipment/shipment-data-store'
 import type { ShipmentData } from '@/domain/shipment/types'
 import { ScanMachine, type ResolvedScanEvent, type ScanEvent } from '@/features/scan-machine'
+import type {
+  Operation,
+  PendingOperation,
+  WorkflowCommand,
+  SourceScope,
+} from '@/features/scan-machine/commands'
 
 import type {
   DestinationProductTableRow,
@@ -23,6 +29,7 @@ export class ScannerWorkflowOrchestrator {
   private readonly machine: ScanMachine
   private started = false
   private lifecycleId = 0
+  private lastExecutedId: string | null = null
   sourceMode: SourceTableMode = 'containers'
 
   constructor(machine: ScanMachine, dataStore: ShipmentDataStore, loader: ShipmentSnapshotLoader) {
@@ -44,7 +51,6 @@ export class ScannerWorkflowOrchestrator {
       () => ({
         activeTransportPlaceId: this.machine.activeTransportPlaceId,
         effectId: this.machine.pendingEffect?.id ?? null,
-        intent: this.machine.lastIntent,
         selectedSource: this.machine.selectedSource,
         source: this.machine.source,
         step: this.machine.step,
@@ -55,14 +61,14 @@ export class ScannerWorkflowOrchestrator {
           this.syncActiveTransportPlace()
         }
         if (snapshot.selectedSource !== previous.selectedSource && snapshot.selectedSource) {
-          this.setSourceMode('products')
+          this.sourceMode = 'products'
         }
-        if (snapshot.intent && snapshot.intent.id !== previous.intent?.id) {
-          console.info('scanner workflow intent', { ...snapshot.intent })
-        }
+        const operation = this.machine.pendingEffect
+        if (operation) this.execute(operation)
       },
     )
-    void this.load(lifecycleId)
+    if (!this.dataStore.hasSnapshot) void this.load(lifecycleId)
+    if (this.machine.pendingEffect) this.execute(this.machine.pendingEffect)
   }
 
   dispose(): void {
@@ -74,7 +80,192 @@ export class ScannerWorkflowOrchestrator {
   }
 
   setSourceMode(mode: SourceTableMode): void {
+    if (this.isBusy) return
     this.sourceMode = mode
+  }
+
+  get isBusy() {
+    return this.machine.isTransferring
+  }
+  get isWaiting() {
+    return this.machine.isWaiting
+  }
+  get step() {
+    return this.machine.step
+  }
+  get feedback() {
+    return this.machine.feedback
+  }
+  get selectedSourceLineId() {
+    return this.machine.selectedSourceLineId
+  }
+  get selectedDestinationProductId() {
+    return this.machine.selectedDestinationProductId
+  }
+  get order() {
+    return this.dataStore.data?.order
+  }
+  get orderTotals() {
+    return this.dataStore.orderTotals
+  }
+  get remainingTotals() {
+    return this.dataStore.remainingTotals
+  }
+  get distributedUnits() {
+    return this.dataStore.distributedUnits
+  }
+  get distributionProgress() {
+    return this.dataStore.distributionProgress
+  }
+  get selectedTransferCommand(): WorkflowCommand {
+    if (this.machine.selectedSourceLineId) return 'transfer-source-line'
+    if (this.machine.source.kind === 'container')
+      return this.machine.selectedSource?.kind === 'product'
+        ? 'transfer-product-from-container'
+        : 'transfer-container'
+    return 'transfer-product'
+  }
+  command(command: WorkflowCommand): void {
+    this.send({ command, type: 'command-scanned' })
+  }
+  selectSourceLine(sourceLineId: string): void {
+    const line = this.dataStore.remainingLines.find((line) => line.id === sourceLineId)
+    if (!line || line.remainingQuantity <= 0) {
+      this.reject('Нет остатка в выбранной строке')
+      return
+    }
+    this.dispatchSelection({
+      productId: line.productId,
+      sourceLineId,
+      type: 'mouse-source-line-selected',
+    })
+  }
+  selectDestinationProduct(productId: string): void {
+    this.dispatchSelection({ productId, type: 'mouse-destination-product-selected' })
+  }
+  get quantityContext() {
+    const step = this.machine.step
+    if (step.kind !== 'awaiting-quantity') return null
+    const op = step.operation
+    const productId = op.kind === 'return' ? op.productId : op.scope.productId
+    const product = this.dataStore.data?.products.find((p) => p.id === productId)
+    if (!product) return null
+    const maximum =
+      op.kind === 'return'
+        ? this.dataStore.returnAvailable(step.transportPlaceId, productId)
+        : this.dataStore
+            .sourceLinesFor(op.scope)
+            .reduce((sum, line) => sum + line.remainingQuantity, 0)
+    return { maximum, product }
+  }
+  submitQuantity(quantity: number): void {
+    const step = this.machine.step
+    if (step.kind !== 'awaiting-quantity') return
+    const error = this.validateOperation({ ...step.operation, quantity }, step.transportPlaceId)
+    if (error) {
+      this.reject(error)
+      return
+    }
+    this.machine.send({ quantity, type: 'quantity-submitted' })
+  }
+  canCommand(command: WorkflowCommand): boolean {
+    if (!this.started || !this.hasSnapshot || this.isBusy) return false
+    if (command === 'cancel') return this.isWaiting
+    if (this.isWaiting) return false
+    const source = this.machine.source
+    const scope = this.machine.sourceScope
+    if (command === 'return-transport-place')
+      return this.dataStore.returnAvailable(this.machine.activeTransportPlaceId) > 0
+    if (command === 'return-product' || command === 'request-return-quantity')
+      return Boolean(
+        this.machine.selectedDestinationProductId &&
+        this.dataStore.returnAvailable(
+          this.machine.activeTransportPlaceId,
+          this.machine.selectedDestinationProductId,
+        ) > 0,
+      )
+    let target: SourceScope | null = scope
+    if (command === 'transfer-container')
+      target = source.kind === 'container' ? { ...source } : null
+    if (command === 'transfer-filtered') target = source.kind !== 'none' ? { ...source } : null
+    if (command === 'transfer-source-line' && scope?.kind !== 'line') return false
+    if (command === 'request-transfer-quantity' && this.machine.selectedSource?.kind !== 'product')
+      return false
+    if (
+      command === 'transfer-product-from-container' &&
+      (source.kind !== 'container' || this.machine.selectedSource?.kind !== 'product')
+    )
+      return false
+    if (command === 'transfer-product' || command === 'transfer-next-product-line')
+      target =
+        source.kind === 'product'
+          ? { ...source, next: command === 'transfer-next-product-line' }
+          : null
+    return Boolean(target && this.dataStore.validateSource(target).ok)
+  }
+  private reject(message: string): void {
+    this.machine.send({ message, type: 'workflow-rejected' })
+  }
+  private validateOperation(operation: Operation, transportPlaceId: string | null): string | null {
+    if (
+      transportPlaceId &&
+      !this.dataStore.data?.transportPlaces.some((p) => p.id === transportPlaceId)
+    )
+      return 'Транспортное место не найдено'
+    if (operation.kind === 'transfer') {
+      const result = this.dataStore.validateSource(operation.scope, operation.quantity)
+      return result.ok
+        ? null
+        : result.code === 'quantity-invalid'
+          ? 'Некорректное количество или недостаточный остаток'
+          : 'Нет доступного остатка для переноса'
+    }
+    if (!transportPlaceId) return 'Транспортное место не выбрано'
+    const available = this.dataStore.returnAvailable(transportPlaceId, operation.productId)
+    if (!available) return 'В транспортном месте нет выбранного товара или оно пусто'
+    if (
+      operation.quantity !== undefined &&
+      (!Number.isInteger(operation.quantity) ||
+        operation.quantity < 1 ||
+        operation.quantity > available)
+    )
+      return 'Некорректное количество или недостаточный остаток'
+    return null
+  }
+  private execute(operation: PendingOperation): void {
+    if (!this.started || this.disposed || this.lastExecutedId === operation.id) return
+    this.lastExecutedId = operation.id
+    let transportPlaceId = operation.transportPlaceId
+    try {
+      const error = this.validateOperation(operation, transportPlaceId)
+      if (error) throw new Error(error)
+      if (!transportPlaceId) {
+        const created = this.dataStore.createTransportPlace()
+        if (!created.ok) throw new Error('Не удалось создать транспортное место')
+        transportPlaceId = created.value.id
+      }
+      const result =
+        operation.kind === 'transfer'
+          ? this.dataStore.transferScoped(operation.scope, transportPlaceId, operation.quantity)
+          : !operation.productId
+            ? this.dataStore.returnTransportPlaceContents(transportPlaceId)
+            : operation.quantity === undefined
+              ? this.dataStore.returnProduct({ productId: operation.productId, transportPlaceId })
+              : this.dataStore.returnProductQuantity({
+                  productId: operation.productId,
+                  quantity: operation.quantity,
+                  transportPlaceId,
+                })
+      if (!result.ok) throw new Error('Операция не выполнена: ' + result.code)
+      this.machine.send({ id: operation.id, transportPlaceId, type: 'operation-succeeded' })
+    } catch (error) {
+      this.machine.send({
+        id: operation.id,
+        message: error instanceof Error ? error.message : 'Не удалось выполнить операцию',
+        transportPlaceId: transportPlaceId ?? undefined,
+        type: 'operation-failed',
+      })
+    }
   }
 
   get sourceFilter() {
@@ -100,6 +291,7 @@ export class ScannerWorkflowOrchestrator {
   }
 
   createTransportPlace(): null | string {
+    if (this.isBusy || this.isWaiting || !this.started) return null
     const result = this.dataStore.createTransportPlace()
     if (!result.ok) return null
     this.machine.mouseTransportPlaceSelected(result.value.id)
@@ -131,6 +323,15 @@ export class ScannerWorkflowOrchestrator {
   }
 
   private dispatchSelection(event: ScanEvent): void {
+    if (this.isBusy) return
+    if (!this.started || !this.hasSnapshot) {
+      this.reject('Данные заказа ещё не загружены')
+      return
+    }
+    if (this.machine.step.kind === 'awaiting-quantity') {
+      this.machine.send(event)
+      return
+    }
     const data = this.dataStore.data
     if (
       data &&
@@ -147,6 +348,17 @@ export class ScannerWorkflowOrchestrator {
       }
       const source = this.machine.source
       if (
+        event.type === 'mouse-destination-product-selected' ||
+        this.machine.step.kind === 'awaiting-return-product'
+      ) {
+        if (!this.dataStore.returnAvailable(this.machine.activeTransportPlaceId, event.productId)) {
+          this.reject('Товар отсутствует в активном транспортном месте')
+          return
+        }
+        this.machine.send(event)
+        return
+      }
+      if (
         source.kind === 'container' &&
         !this.dataStore.remainingLines.some(
           (line) =>
@@ -156,6 +368,28 @@ export class ScannerWorkflowOrchestrator {
         )
       ) {
         this.machine.send({ code: 'product-not-in-container', type: 'selection-rejected' })
+        return
+      }
+    }
+    if (
+      event.type === 'command-scanned' &&
+      event.command === 'request-transfer-quantity' &&
+      !this.canCommand(event.command)
+    ) {
+      this.reject('Нет выбранного товара с доступным остатком')
+      return
+    }
+    if (
+      event.type === 'command-scanned' &&
+      (event.command === 'return-product' || event.command === 'request-return-quantity') &&
+      !this.machine.isWaiting
+    ) {
+      const error = this.validateOperation(
+        { kind: 'return', productId: this.machine.selectedDestinationProductId ?? undefined },
+        this.machine.activeTransportPlaceId,
+      )
+      if (error) {
+        this.reject(error)
         return
       }
     }
@@ -236,6 +470,27 @@ export class ScannerWorkflowOrchestrator {
       return [...rows.values()]
         .map(({ products, ...row }) => ({ ...row, sku: products.size }))
         .sort((left, right) => left.name.localeCompare(right.name))
+    }
+
+    if (filter) {
+      return remainingLines.flatMap((line) => {
+        const product = productsById.get(line.productId)
+        if (!product) return []
+        return [
+          {
+            boxes: line.remainingQuantity / product.unitsPerBox,
+            code: product.code,
+            containerName:
+              data.containers.find((c) => c.id === line.containerId)?.barcode ?? line.containerId,
+            containers: 1,
+            id: line.id,
+            name: product.name,
+            productId: product.id,
+            sourceLineId: line.id,
+            units: line.remainingQuantity,
+          },
+        ]
+      })
     }
 
     const rows = new Map<
@@ -355,11 +610,19 @@ export class ScannerWorkflowOrchestrator {
   }
 
   private async load(lifecycleId: number): Promise<void> {
-    const snapshot = await this.loader()
-    if (!this.disposed && lifecycleId === this.lifecycleId) {
-      this.dataStore.setSnapshot(snapshot)
-      this.syncSourceFilter()
-      this.syncActiveTransportPlace()
+    try {
+      const snapshot = await this.loader()
+      if (!this.disposed && lifecycleId === this.lifecycleId) {
+        this.dataStore.setSnapshot(snapshot)
+        this.syncSourceFilter()
+        if (!this.machine.activeTransportPlaceId && snapshot.transportPlaces.length > 0) {
+          this.machine.mouseTransportPlaceSelected(snapshot.transportPlaces[0].id)
+        }
+        this.syncActiveTransportPlace()
+      }
+    } catch {
+      if (!this.disposed && lifecycleId === this.lifecycleId)
+        this.reject('Не удалось загрузить заказ')
     }
   }
 }

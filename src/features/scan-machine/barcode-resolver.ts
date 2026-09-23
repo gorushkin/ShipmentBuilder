@@ -1,5 +1,6 @@
 import type { ShipmentData } from '@/domain/shipment/types'
 
+import { barcodeCommands } from './commands'
 import type { ResolvedScanEvent } from './scan-machine'
 
 export type BarcodeResolution = { event: ResolvedScanEvent; kind: 'resolved' } | { kind: 'unknown' }
@@ -13,9 +14,8 @@ export class BarcodeResolver {
 
   resolve(rawValue: string): BarcodeResolution {
     const barcode = rawValue.trim().toUpperCase()
-    if (barcode === 'CMD:QTY') {
-      return { event: { command: 'transfer-quantity', type: 'command-scanned' }, kind: 'resolved' }
-    }
+    const command = Object.entries(barcodeCommands).find(([code]) => code === barcode)?.[1]
+    if (command) return { event: { command, type: 'command-scanned' }, kind: 'resolved' }
 
     const data = this.getData()
     if (!data) return { kind: 'unknown' }

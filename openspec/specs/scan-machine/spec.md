@@ -9,106 +9,87 @@
 
 ### Requirement: Typed scanner state and context
 
-Система SHALL предоставлять реактивную `ScanMachine`, которая хранит сценарный шаг, source filter context в виде discriminated ID-ссылки, выбранный source entity (ID контейнера или товара, при необходимости вместе с ID контейнера), active transport place ID, feedback, pending effect и последнее типизированное workflow intent с уникальным ID. Машина SHALL NOT хранить полные доменные сущности, остатки или распределения и SHALL NOT получать сырой текст штрихкода. Source context SHALL представлять текущий фильтр, а selected entity SHALL представлять цель взаимодействия; выбор товара внутри контейнера SHALL сохранять контейнерный source context.
+Реактивная ScanMachine SHALL хранить ID source context, source selection, optional selectedSourceLineId, destination product selection, active transport place, feedback и pending operation с уникальным ID. Машина SHALL NOT читать доменные данные, получать raw barcode или исполнять доменные callbacks.
 
-#### Scenario: Select a container from a resolved scan
+#### Scenario: Select within container
+- **WHEN** выбран P1 внутри C1
+- **THEN** source context остаётся C1, selected entity содержит C1/P1
 
-- **WHEN** машина в `ready` получает `container-scanned` для C1
-- **THEN** её устойчивый шаг становится `container-selected(C1)`, а source context — фильтром C1
-- **AND** feedback сообщает, что контейнер выбран
-
-#### Scenario: Select a product within the selected container
-
-- **WHEN** машина с фильтром C1 получает `product-scanned(P1)`
-- **THEN** выбранный source entity становится парой C1/P1, а source context остаётся фильтром C1
-- **AND** машина не читает доменные записи для проверки принадлежности товара контейнеру
+#### Scenario: Pin a source line
+- **WHEN** мышью выбрана L3
+- **THEN** машина сохраняет её ID для следующей операции
 
 ### Requirement: Container and product scan transitions
 
-Первое сканирование контейнера SHALL выбирать контейнер и устанавливать контекст фильтра по нему. Сканирование товара без активного контейнерного контекста SHALL выбирать товар и устанавливать фильтр по товару. Сканирование товара при активном фильтре контейнера SHALL выбирать товар внутри этого контейнера и публиковать типизированное intent будущего переноса только из выбранного контейнера. Повторное сканирование уже выбранного контейнера SHALL публиковать intent будущего переноса контейнера; повторное сканирование товара при фильтре по товару SHALL публиковать intent переноса следующей строки товара. Ни один из этих переходов SHALL NOT создавать `ScanEffect`, входить в `transferring-*` или блокировать ввод.
+Первый скан C SHALL выбирать контейнер. Повторный скан выбранного C SHALL запускать transfer-container. Скан P при container filter SHALL запускать transfer-product-from-container; без container filter первый скан выбирает P, повторный запускает transfer-next-product-line. Явно выбранная совпадающая sourceLine SHALL иметь приоритет. Операции SHALL переходить в transferring с pending effect.
 
-#### Scenario: First scan of a container
+#### Scenario: Initial selection
+- **WHEN** в ready сканируется C1 или P1
+- **THEN** устанавливается соответствующий фильтр без переноса
 
-- **WHEN** машина получает `container-scanned(C1)` вне фильтра C1
-- **THEN** контейнер C1 становится выбранным и устанавливается source filter C1
-- **AND** pending effect отсутствует
+#### Scenario: Container rescan
+- **WHEN** повторно сканируется выбранный C1
+- **THEN** публикуется исполняемая операция переноса контейнера
 
-#### Scenario: Re-scan a selected container without transfer implementation
+#### Scenario: Product within container
+- **WHEN** сканируется P1 при фильтре C1 без pin
+- **THEN** создаётся операция P1 только из C1
 
-- **WHEN** машина с выбранным C1 получает повторный `container-scanned(C1)`
-- **THEN** выбранный контейнер и source filter C1 сохраняются
-- **AND** машина публикует новое intent `transfer-container(C1)` без transfer effect или transferring-state
+#### Scenario: Repeated product
+- **WHEN** повторно сканируется P1 при product filter без pin
+- **THEN** создаётся операция следующей строки P1
 
-#### Scenario: Scan a product without a container filter
-
-- **WHEN** машина не имеет container source context и получает `product-scanned(P1)`
-- **THEN** P1 становится выбранным товаром и source context становится product filter P1
-- **AND** allocations, pending effect и active transport place не меняются
-
-#### Scenario: Scan a product inside a selected container
-
-- **WHEN** машина имеет source filter C1 и получает `product-scanned(P1)`
-- **THEN** выбранный context содержит C1 и P1, а source filter C1 сохраняется
-- **AND** машина публикует intent будущего переноса P1 только из C1 без transfer effect
-
-#### Scenario: Re-scan a product filter without transfer implementation
-
-- **WHEN** машина с product filter P1 получает повторный `product-scanned(P1)`
-- **THEN** product selection и filter P1 сохраняются
-- **AND** машина публикует новое intent будущего переноса следующей строки P1 без transfer effect
+#### Scenario: Pinned product
+- **WHEN** скан совпадает с выбранной L3
+- **THEN** создаётся операция именно L3
 
 ### Requirement: Transport place and quantity command transitions
 
-Получив `transport-place-scanned`, машина SHALL обновлять active transport place ID без потери source context или выбранного source entity. Команда `transfer-quantity` SHALL оставаться вне исполняемого quantity workflow: при выбранном товаре машина публикует техническое intent без перехода в `awaiting-quantity`, а без выбранного товара SHALL публиковать error feedback без сброса source context.
+Скан ТМ SHALL выбирать ТМ, сохранять source context, очищать destination product selection. Команда количества SHALL переходить в awaiting-quantity при выбранном source product; без него сообщать ошибку. Return commands SHALL использовать destination product либо awaiting-return-product. Quantity-submit SHALL приводить к transferring только после проверки количества.
 
-#### Scenario: Select a transport place without losing product context
+#### Scenario: Transport place selection
+- **WHEN** сканируется TM1
+- **THEN** назначение меняется без переноса и потери source filter
 
-- **WHEN** машина находится в `product-selected(P1)` и получает `transport-place-scanned(TM1)`
-- **THEN** active transport place ID становится TM1
-- **AND** шаг, source filter и выбранный товар P1 сохраняются
+#### Scenario: Request quantity
+- **WHEN** выбран P1 и поступает CMD:QTY
+- **THEN** машина ожидает количество с фиксированным scope
 
-#### Scenario: Log a partial-transfer command without starting transfer
-
-- **WHEN** машина с выбранным товаром получает `command-scanned(transfer-quantity)`
-- **THEN** машина публикует техническое intent, не переходя в `awaiting-quantity` или `transferring-*`
-- **AND** data allocations остаются неизменными
-
-#### Scenario: Reject partial-transfer command without product selection
-
-- **WHEN** машина без выбранного товара получает команду `transfer-quantity`
-- **THEN** source context остаётся неизменным
-- **AND** feedback сообщает, что товар для переноса количества не выбран
+#### Scenario: No source product
+- **WHEN** CMD:QTY поступает без товара
+- **THEN** feedback показывает ошибку, контекст сохранён
 
 ### Requirement: Pending transfer behavior
 
-В этом change сканерные и мышиные события выбора SHALL NOT устанавливать `pendingEffect`, переходить в `transferring-*`, публиковать «Обработка…» или блокировать следующий ввод. Каждое неисполняемое transfer intent SHALL иметь уникальный ID, чтобы оркестратор мог залогировать повторное действие даже при неизменном стабильном selection state. Фактическое исполнение transfer effects остаётся за пределами этого change.
+В transferring машина SHALL блокировать новые пользовательские действия, показывать «Обработка» и ждать completion текущего operationId. Success SHALL очищать pending и переходить в устойчивый контекст; failure SHALL очищать pending, восстанавливать контекст и показывать ошибку. Чужое или повторное completion SHALL игнорироваться.
 
-#### Scenario: Repeated action remains non-blocking
+#### Scenario: Busy input
+- **WHEN** во время pending поступает повторный скан
+- **THEN** новой операции нет
 
-- **WHEN** пользователь повторно сканирует выбранную сущность
-- **THEN** машина публикует intent с новым ID и сохраняет устойчивое состояние выбора
-- **AND** `pendingEffect` остаётся пустым и следующий ввод принимается
+#### Scenario: Completion
+- **WHEN** получен success текущего ID
+- **THEN** busy снят и фильтр сохранён
+
+#### Scenario: Stale completion
+- **WHEN** получен completion другого ID
+- **THEN** текущая операция не меняется
+
+#### Scenario: Failure
+- **WHEN** исполнение завершилось ошибкой
+- **THEN** ввод разблокирован, прежний контекст и ошибка доступны
 
 ### Requirement: Explicit mouse context synchronization
 
-Машина SHALL предоставлять явные типизированные события для выбора контейнера, товара и транспортного места мышью, а также очистки source filter. Mouse selection SHALL использовать общие переходы выбора и SHALL NOT напрямую изменять `ShipmentDataStore`. Выбор товара при container filter SHALL сохранять filter и container context. Повторный клик SHALL быть идемпотентным и сам по себе SHALL NOT имитировать повторное сканирование или публиковать transfer intent.
+Машина SHALL принимать mouse selection контейнера, товара, sourceLine, ТМ, товара назначения и clear filter. Клики SHALL NOT напрямую менять DataStore или начинать перенос; повторный клик идемпотентен. Кнопки действий SHALL отправлять те же typed commands, что command barcodes.
 
-#### Scenario: Mouse selection and scan converge on container context
+#### Scenario: Selection only
+- **WHEN** пользователь повторно кликает строку
+- **THEN** выбор сохраняется без переноса
 
-- **WHEN** пользователь выбирает C1 мышью или сканирует его код
-- **THEN** в обоих случаях машина публикует эквивалентный container selection и filter context
-- **AND** фильтр применяется только оркестратором
-
-#### Scenario: Mouse selection and scan converge on product context
-
-- **WHEN** пользователь выбирает P1 мышью или сканирует его код без container filter
-- **THEN** в обоих случаях машина публикует эквивалентный product selection и filter context
-
-#### Scenario: Repeated mouse selection is not a repeated scan
-
-- **WHEN** пользователь повторно кликает уже выбранную строку
-- **THEN** machine selection остаётся прежним
-- **AND** transfer intent не публикуется
+#### Scenario: Mouse then scan
+- **WHEN** мышью выбрана L3, затем сканируется её товар
+- **THEN** перенос адресует L3
 
 ### Requirement: Selection validation recovery
 
@@ -119,3 +100,11 @@
 - **WHEN** the orchestrator rejects P1 selection because P1 has no positive remaining quantity in selected container C1
 - **THEN** machine returns to the previous `container-selected(C1)` context
 - **AND** feedback reports «Товар отсутствует в выбранном контейнере» while no filter or allocation is changed
+
+### Requirement: Workflow cancellation
+
+Escape, кнопка отмены и CMD:CANCEL SHALL завершать awaiting-return-product/awaiting-quantity без изменения данных, восстанавливая предыдущий контекст. В transferring отмена SHALL отклоняться; в устойчивом состоянии SHALL быть no-op.
+
+#### Scenario: Cancel quantity
+- **WHEN** отменено ожидание количества
+- **THEN** диалог закрыт, данные и прежний выбор сохранены

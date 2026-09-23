@@ -8,7 +8,6 @@ export type {
   ScanErrorCode,
   ScanEvent,
   ScanFeedback,
-  ScanIntent,
   ScanSelection,
   ScanSourceContext,
   ScanStep,

@@ -28,7 +28,7 @@ SHALL NOT читать старый `ShipmentStore` или менять расп
 
 #### Scenario: Project source rows by source mode
 - **WHEN** левая панель запрашивает строки в режиме «Контейнеры» или «Товары»
-- **THEN** orchestrator возвращает соответственно агрегированные контейнеры или товары из положительных остатков
+- **THEN** orchestrator возвращает агрегированные контейнеры; в режиме товаров — отдельные sourceLines при фильтре, иначе агрегированные товары из положительных остатков
 - **AND** результат не содержит строки другого режима и не зависит от старого `ShipmentStore`
 
 #### Scenario: Project destination rows by local mode
@@ -48,52 +48,42 @@ SHALL NOT читать старый `ShipmentStore` или менять расп
 
 ### Requirement: Machine observation and workflow reactions
 
-Оркестратор SHALL наблюдать компактный snapshot `ScanMachine`, включающий step, source filter context, выбранный source entity, active transport place ID, pending effect ID и новое non-executing intent. При его изменении оркестратор SHALL синхронизировать source filter и active transport place в `ShipmentDataStore`, устанавливать режим левой таблицы «Товары» при выборе контейнера или товара и писать structured technical logs. Оркестратор SHALL NOT вызывать transfer или return commands `ShipmentDataStore`, SHALL NOT отправлять completion events машине и SHALL NOT создавать фиктивное состояние transferring. Таблицы SHALL направлять мышиные действия выбора через узкие методы оркестратора, которые отправляют typed mouse events машине; UI SHALL NOT менять source filters напрямую. Ручная смена source display mode SHALL менять только observable mode оркестратора, не меняя machine context или фильтр.
+Оркестратор SHALL синхронизировать filters и active ТМ с машиной, переводить левую таблицу в товары при source selection и исполнять pending operations через DataStore один раз на ID. Результат или исключение SHALL отправляться машине как completion. Ручная смена режима SHALL NOT менять context. UI SHALL отправлять typed events через оркестратор, не изменять filters/allocations напрямую.
 
-#### Scenario: Select a container from scan or mouse
+#### Scenario: Execute operation
+- **WHEN** машина публикует pending transfer
+- **THEN** оркестратор вызывает соответствующую команду store и сообщает результат
 
-- **WHEN** машина получает выбор C1 сканером или мышью
-- **THEN** оркестратор применяет container filter C1 в `ShipmentDataStore` и устанавливает source display mode «Товары»
-- **AND** отфильтрованные строки содержат только товары с положительным остатком C1
+#### Scenario: Invalid product
+- **WHEN** P1 отсутствует в выбранном C1
+- **THEN** ошибка сохраняет прежний выбор и фильтр
 
-#### Scenario: Select a product without container context
+#### Scenario: Lifecycle safety
+- **WHEN** reaction повторно видит тот же ID или приходит поздний результат после dispose
+- **THEN** операция не исполняется повторно и старый результат не меняет новую сессию
 
-- **WHEN** машина выбирает P1 без активного container filter
-- **THEN** оркестратор применяет product filter P1 и устанавливает source display mode «Товары»
-- **AND** проекция содержит агрегированную строку P1 только по положительным остаткам
+#### Scenario: View mode only
+- **WHEN** пользователь меняет режим
+- **THEN** фильтр и pending context сохраняются
 
-#### Scenario: Select a product within a container context
+### Requirement: Automatic destination creation
 
-- **WHEN** машина выбирает P1 при фильтре C1
-- **THEN** оркестратор проверяет наличие положительной source line P1 в C1 и сохраняет container filter C1
-- **AND** при валидном выборе оркестратор пишет техническое intent будущего переноса P1 только из C1, не меняя allocations
+Оркестратор SHALL создавать и выбирать ТМ при валидном переносе без active destination, передавать конкретный ID в DataStore. Отмена и ошибка prevalidation SHALL NOT создавать ТМ. Возврат SHALL NOT создавать ТМ.
 
-#### Scenario: Product is absent from the selected container
+После загрузки snapshot при отсутствии активного выбора оркестратор SHALL выбирать первое существующее ТМ. Ручное создание ТМ SHALL сразу делать его активным и в машине, и в DataStore.
 
-- **WHEN** P1 не найден в выбранном C1
-- **THEN** оркестратор сообщает машине ошибку «Товар отсутствует в выбранном контейнере»
-- **AND** прежний machine context и фильтр C1 сохраняются
+#### Scenario: Existing place after loading
+- **WHEN** snapshot содержит ТМ, но active destination ещё не выбран
+- **THEN** первое ТМ становится активным, первый перенос использует его без создания нового
 
-#### Scenario: Select a transport place
+#### Scenario: Newly created place
+- **WHEN** пользователь создаёт ТМ
+- **THEN** новое ТМ становится активным в машине и DataStore и используется следующим переносом
 
-- **WHEN** машина получает выбор TM1 сканером или мышью
-- **THEN** оркестратор устанавливает TM1 активным в `ShipmentDataStore`
-- **AND** source filter, source display mode и локальный режим правой таблицы сохраняются
+#### Scenario: First transfer
+- **WHEN** валидный перенос запрошен без ТМ
+- **THEN** создаётся одно ТМ и перенос выполняется в него
 
-#### Scenario: Manual source mode change is presentation-only
-
-- **WHEN** пользователь вручную меняет source display mode через панель
-- **THEN** observable mode оркестратора меняется на выбранный режим
-- **AND** machine context, `ShipmentDataStore.sourceFilter` и allocations не меняются
-
-#### Scenario: Log a deferred transfer intent
-
-- **WHEN** машина публикует intent повторного сканирования контейнера или товара
-- **THEN** оркестратор пишет один structured log с уникальным intent ID, типом действия и контекстом сущности
-- **AND** transfer/return commands не вызываются, `pendingEffect` остаётся пустым и ввод не блокируется
-
-#### Scenario: Projection before snapshot is loaded
-
-- **WHEN** таблица запрашивает проекцию до загрузки snapshot-а
-- **THEN** оркестратор возвращает пустой список выбранного режима
-- **AND** не подменяет результат данными старого `ShipmentStore`
+#### Scenario: Invalid request
+- **WHEN** нет положительного остатка
+- **THEN** ошибка не создаёт ТМ

@@ -47,18 +47,13 @@
 
 ### Requirement: Destination product selection lifecycle
 
-`ShipmentStore` SHALL retain its product-selection and return-command capabilities
-for legacy operations. В новых табличных режимах строки SHALL быть только для
-отображения: клик, Enter или Space SHALL NOT выбирать товар, менять active ТМ,
-вызывать возврат либо менять любой store. Режимы отображения SHALL оставаться
-локальным UI-состоянием и SHALL NOT переключаться автоматически при изменении
-данных.
+Клик, Enter или Space на строке товара ТМ SHALL выбирать этот товар через `ScanMachine` без изменения allocations. Выбор используется командой возврата, а смена активного ТМ SHALL его очистить. Режим правой таблицы SHALL оставаться локальным UI-состоянием и SHALL NOT переключаться автоматически при изменении данных.
 
 #### Scenario: Activate a destination product row
 
 - **WHEN** пользователь кликает по строке товара или активирует её клавиатурой
-- **THEN** строка остаётся отображением данных либо записывается технический лог её типа и ID
-- **AND** выбор товара, active ТМ и allocation lines не меняются
+- **THEN** машина выбирает этот товар для возврата
+- **AND** active ТМ и allocation lines не меняются до команды возврата
 
 #### Scenario: Switch local destination mode
 

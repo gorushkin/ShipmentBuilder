@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ShipmentStore } from '@/domain/shipment/shipment-store'
 import {
   scannerWorkflowOrchestrator,
   type DestinationTableMode,
@@ -81,20 +80,24 @@ function DestinationModeSelect({
   )
 }
 
-function CreateTransportPlaceAction({ store }: { store: ShipmentStore }) {
+const CreateTransportPlaceAction = observer(function CreateTransportPlaceAction() {
   return (
     <Button
-      disabled={!scannerWorkflowOrchestrator.hasSnapshot}
+      disabled={
+        !scannerWorkflowOrchestrator.hasSnapshot ||
+        scannerWorkflowOrchestrator.isBusy ||
+        scannerWorkflowOrchestrator.isWaiting
+      }
       size="sm"
       onClick={() => {
-        if (scannerWorkflowOrchestrator.createTransportPlace()) store.createTransportPlace()
+        scannerWorkflowOrchestrator.createTransportPlace()
       }}
     >
       <Plus />
       Создать ТМ
     </Button>
   )
-}
+})
 
 export const SourcePanel = observer(function SourcePanel() {
   const mode = scannerWorkflowOrchestrator.sourceMode
@@ -108,8 +111,15 @@ export const SourcePanel = observer(function SourcePanel() {
     mode === 'products' ? (
       <SourceProductTable
         rows={scannerWorkflowOrchestrator.getSourceRows('products')}
-        selectedProductId={selectedSource?.kind === 'product' ? selectedSource.productId : null}
-        onSelect={scannerWorkflowOrchestrator.selectProduct.bind(scannerWorkflowOrchestrator)}
+        selectedProductId={
+          scannerWorkflowOrchestrator.selectedSourceLineId ??
+          (selectedSource?.kind === 'product' ? selectedSource.productId : null)
+        }
+        onSelect={(row) =>
+          row.sourceLineId
+            ? scannerWorkflowOrchestrator.selectSourceLine(row.sourceLineId)
+            : scannerWorkflowOrchestrator.selectProduct(row.id)
+        }
       />
     ) : (
       <SourceContainerTable
@@ -159,11 +169,7 @@ export const SourcePanel = observer(function SourcePanel() {
   )
 })
 
-export const DestinationPanel = observer(function DestinationPanel({
-  store,
-}: {
-  store: ShipmentStore
-}) {
+export const DestinationPanel = observer(function DestinationPanel() {
   const [mode, setMode] = useState<DestinationTableMode>('transport-places')
   const isProductMode = mode === 'transport-place-products'
   const rowCount = isProductMode
@@ -188,7 +194,7 @@ export const DestinationPanel = observer(function DestinationPanel({
           <Badge variant="secondary" className="count">
             {rowCount}
           </Badge>
-          <CreateTransportPlaceAction store={store} />
+          <CreateTransportPlaceAction />
         </div>
         <div className="panel-toolbar">
           <DestinationModeSelect mode={mode} onModeChange={setMode} />
@@ -205,111 +211,55 @@ export const DestinationPanel = observer(function DestinationPanel({
   )
 })
 
-export const TransferActions = observer(function TransferActions({
-  store,
-}: {
-  store: ShipmentStore
-}) {
-  const [partialDirection, setPartialDirection] = useState<null | 'distribute' | 'return'>(null)
-  const partialContext =
-    partialDirection === 'distribute'
-      ? store.partialDistributionContext
-      : partialDirection === 'return'
-        ? store.partialReturnContext
-        : null
-
+export const TransferActions = observer(function TransferActions() {
+  const workflow = scannerWorkflowOrchestrator
+  const step = workflow.step
+  const direction =
+    step.kind === 'awaiting-quantity'
+      ? step.operation.kind === 'return'
+        ? 'return'
+        : 'distribute'
+      : null
+  const actions = [
+    [workflow.selectedTransferCommand, 'Переместить строку'],
+    ['transfer-filtered', 'Переместить всё по фильтру'],
+    ['request-transfer-quantity', 'Переместить количество'],
+    ['return-product', 'Вернуть товар'],
+    ['request-return-quantity', 'Вернуть количество'],
+    ['return-transport-place', 'Вернуть всё из ТМ'],
+  ] as const
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
       <span className="eyebrow">ПЕРЕМЕЩЕНИЕ</span>
-      <Button
-        variant="outline"
-        className="transfer-button"
-        disabled={
-          store.sourceFilter
-            ? !store.canDistributeSelectedSourceLine
-            : store.sourceDisplayMode === 'containers'
-              ? !store.canDistributeSelectedContainer
-              : !store.canDistributeSelectedProduct
-        }
-        onClick={() => {
-          if (store.sourceFilter) store.distributeSelectedSourceLine()
-          else if (store.sourceDisplayMode === 'containers') store.distributeSelectedContainer()
-          else store.distributeSelectedProduct()
-        }}
-      >
-        <ArrowRight />
-        <span>Переместить строку</span>
-      </Button>
-      <Button
-        variant="outline"
-        className="transfer-button"
-        disabled={!store.canDistributeBulkSourceLines}
-        onClick={() => store.distributeBulkSourceLines()}
-      >
-        <ArrowRight />
-        <span>Переместить всё по фильтру</span>
-      </Button>
-      <Button
-        variant="outline"
-        className="transfer-button"
-        disabled={!store.partialDistributionContext}
-        onClick={() => setPartialDirection('distribute')}
-      >
-        <ArrowRight />
-        <span>Переместить количество</span>
-      </Button>
-      <Button
-        variant="outline"
-        className="transfer-button return-action"
-        disabled={
-          store.destinationDisplayMode === 'transport-places'
-            ? !store.canReturnActiveTransportPlaceContents
-            : !store.canReturnSelectedTransportPlaceProduct
-        }
-        onClick={() => {
-          if (store.destinationDisplayMode === 'transport-places') {
-            store.returnActiveTransportPlaceContents()
-          } else {
-            store.returnSelectedTransportPlaceProduct()
-          }
-        }}
-      >
-        <ArrowLeft />
-        <span>Вернуть строку</span>
-      </Button>
-      <Button
-        variant="outline"
-        className="transfer-button return-action"
-        disabled={!store.partialReturnContext}
-        onClick={() => setPartialDirection('return')}
-      >
-        <ArrowLeft />
-        <span>Вернуть количество</span>
-      </Button>
-      <Button
-        variant="outline"
-        className="transfer-button return-action"
-        disabled={!store.canReturnBulkDestinationLines}
-        onClick={() => store.returnBulkDestinationLines()}
-      >
-        <ArrowLeft />
-        <span>Вернуть всё по фильтру</span>
-      </Button>
-      <PartialQuantityDialog
-        key={partialDirection}
-        context={partialContext}
-        direction={partialDirection}
-        onConfirm={(quantity) => {
-          if (partialDirection === 'distribute') store.distributeSelectedProductQuantity(quantity)
-          if (partialDirection === 'return')
-            store.returnSelectedTransportPlaceProductQuantity(quantity)
-          setPartialDirection(null)
-        }}
-        onOpenChange={(open) => {
-          if (!open) setPartialDirection(null)
-        }}
-        open={partialDirection !== null}
-      />
+      {actions.map(([command, label]) => (
+        <Button
+          key={command}
+          variant="outline"
+          className="transfer-button"
+          disabled={!workflow.canCommand(command)}
+          onClick={() => workflow.command(command)}
+        >
+          {command.includes('return') ? <ArrowLeft /> : <ArrowRight />}
+          <span>{label}</span>
+        </Button>
+      ))}
+      {workflow.isWaiting && (
+        <Button variant="outline" onClick={() => workflow.command('cancel')}>
+          Отмена
+        </Button>
+      )}
+      {step.kind === 'awaiting-quantity' && (
+        <PartialQuantityDialog
+          context={workflow.quantityContext}
+          direction={direction}
+          error={workflow.feedback.kind === 'error' ? workflow.feedback.message : null}
+          onConfirm={(quantity) => workflow.submitQuantity(quantity)}
+          onOpenChange={(open) => {
+            if (!open) workflow.command('cancel')
+          }}
+          open
+        />
+      )}
     </aside>
   )
 })

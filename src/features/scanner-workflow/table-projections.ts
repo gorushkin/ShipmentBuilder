@@ -13,9 +13,12 @@ export interface SourceContainerTableRow {
 export interface SourceProductTableRow {
   boxes: number
   code: string
+  containerName?: string
   containers: number
   id: string
   name: string
+  productId?: string
+  sourceLineId?: string
   units: number
 }
 

@@ -67,8 +67,8 @@ describe('ScannerWorkflowOrchestrator', () => {
     dataStore.setContainerFilter('C1')
     expect(orchestrator.getSourceRows('products')).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ containers: 1, id: 'P1', units: 10 }),
-        expect.objectContaining({ containers: 1, id: 'P2', units: 5 }),
+        expect.objectContaining({ containers: 1, id: 'L1', units: 10 }),
+        expect.objectContaining({ containers: 1, id: 'L2', units: 5 }),
       ]),
     )
     expect(orchestrator.getSourceRows('products')).toHaveLength(2)
@@ -93,12 +93,12 @@ describe('ScannerWorkflowOrchestrator', () => {
       expect.objectContaining({
         boxes: 1.9,
         id: 'ORD-001-TP-001',
-        isActive: false,
+        isActive: true,
         sku: 2,
         units: 14,
       }),
     ])
-    expect(orchestrator.getDestinationRows('transport-place-products')).toEqual([])
+    expect(orchestrator.getDestinationRows('transport-place-products')).toHaveLength(2)
 
     dataStore.selectTransportPlace('ORD-001-TP-001')
     expect(orchestrator.getDestinationRows('transport-places')[0].isActive).toBe(true)
@@ -166,71 +166,6 @@ describe('ScannerWorkflowOrchestrator', () => {
     dispose()
   })
 
-  it('routes scanner and mouse selections through one context and preserves allocations', async () => {
-    const snapshot = createDemoData()
-    const dataStore = new ShipmentDataStore()
-    const machine = new ScanMachine()
-    const orchestrator = new ScannerWorkflowOrchestrator(machine, dataStore, () =>
-      Promise.resolve(snapshot),
-    )
-    const adapter = new BarcodeInputAdapter(new BarcodeResolver(snapshot), orchestrator)
-    const log = vi.spyOn(console, 'info').mockImplementation(() => undefined)
-    orchestrator.start()
-    await Promise.resolve()
-
-    orchestrator.selectContainer('C1')
-    expect(machine.source).toEqual({ containerId: 'C1', kind: 'container' })
-    expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
-    expect(orchestrator.getSourceRows('products')).toHaveLength(2)
-    orchestrator.setSourceMode('containers')
-    expect(orchestrator.getSourceRows('containers')).toHaveLength(1)
-    expect(machine.source.kind).toBe('container')
-
-    adapter.submit('p1')
-    expect(machine.selectedSource).toEqual({ containerId: 'C1', kind: 'product', productId: 'P1' })
-    expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
-    expect(orchestrator.sourceMode).toBe('products')
-    expect(log).toHaveBeenCalledWith(
-      'scanner workflow intent',
-      expect.objectContaining({
-        containerId: 'C1',
-        kind: 'transfer-product-from-container',
-        productId: 'P1',
-      }),
-    )
-    expect(dataStore.data?.allocationLines).toEqual([])
-    expect(machine.pendingEffect).toBeNull()
-
-    orchestrator.clearSourceFilter()
-    adapter.submit('P1')
-    expect(dataStore.sourceFilter).toEqual({ productId: 'P1', type: 'product' })
-    expect(orchestrator.getSourceRows('products')).toEqual([
-      expect.objectContaining({ containers: 2, id: 'P1', units: 25 }),
-    ])
-    orchestrator.setSourceMode('containers')
-    expect(orchestrator.getSourceRows('containers')).toHaveLength(2)
-
-    orchestrator.selectTransportPlace('ORD-001-TP-001')
-    expect(dataStore.activeTransportPlaceId).toBe('ORD-001-TP-001')
-    expect(orchestrator.sourceMode).toBe('containers')
-    expect(dataStore.sourceFilter).toEqual({ productId: 'P1', type: 'product' })
-    expect(dataStore.data?.allocationLines).toEqual([])
-
-    const createdId = orchestrator.createTransportPlace()
-    expect(createdId).toBe('ORD-001-TP-002')
-    const dynamicAdapter = new BarcodeInputAdapter(
-      new BarcodeResolver(() => dataStore.data),
-      orchestrator,
-    )
-    orchestrator.selectTransportPlace('ORD-001-TP-001')
-    dynamicAdapter.submit('tm2')
-    expect(machine.activeTransportPlaceId).toBe(createdId)
-    expect(dataStore.activeTransportPlaceId).toBe(createdId)
-    expect(dataStore.data?.allocationLines).toEqual([])
-    log.mockRestore()
-    orchestrator.dispose()
-  })
-
   it('rejects a product absent from the selected container and an unknown place without losing context', async () => {
     const dataStore = new ShipmentDataStore()
     const machine = new ScanMachine()
@@ -244,43 +179,12 @@ describe('ScannerWorkflowOrchestrator', () => {
     expect(machine.feedback.message).toBe('Товар отсутствует в выбранном контейнере')
     expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
     expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
-    expect(machine.lastIntent).toBeNull()
+    expect(machine.pendingEffect).toBeNull()
 
     orchestrator.selectTransportPlace('missing')
     expect(machine.feedback.message).toBe('Транспортное место не найдено')
-    expect(dataStore.activeTransportPlaceId).toBeNull()
+    expect(dataStore.activeTransportPlaceId).toBe('ORD-001-TP-001')
     expect(dataStore.data?.allocationLines).toEqual([])
-    orchestrator.dispose()
-  })
-
-  it('logs repeated scans once each, keeps input ready, and preserves allocation lines', async () => {
-    const snapshot = createDemoData()
-    const dataStore = new ShipmentDataStore()
-    const machine = new ScanMachine()
-    const orchestrator = new ScannerWorkflowOrchestrator(machine, dataStore, () =>
-      Promise.resolve(snapshot),
-    )
-    const adapter = new BarcodeInputAdapter(new BarcodeResolver(snapshot), orchestrator)
-    const log = vi.spyOn(console, 'info').mockImplementation(() => undefined)
-    orchestrator.start()
-    await Promise.resolve()
-
-    adapter.submit('c1')
-    adapter.submit('c1')
-    adapter.submit('c1')
-    expect(log).toHaveBeenCalledTimes(2)
-    expect(log.mock.calls.map((call) => (call[1] as { id: string }).id)).toEqual([
-      'scan-intent-1',
-      'scan-intent-2',
-    ])
-    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
-    expect(machine.isTransferring).toBe(false)
-    expect(dataStore.data?.allocationLines).toEqual([])
-
-    adapter.submit('invalid')
-    expect(machine.feedback.message).toBe('Штрихкод не распознан')
-    expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
-    log.mockRestore()
     orchestrator.dispose()
   })
 
@@ -294,11 +198,11 @@ describe('ScannerWorkflowOrchestrator', () => {
     await Promise.resolve()
 
     orchestrator.selectProduct('P1')
-    expect(orchestrator.getSourceRows('products').map((row) => row.id)).toEqual(['P1'])
+    expect(orchestrator.getSourceRows('products').map((row) => row.id)).toEqual(['L1', 'L3'])
     orchestrator.selectProduct('P2')
     expect(machine.source).toEqual({ kind: 'product', productId: 'P2' })
     expect(dataStore.sourceFilter).toEqual({ productId: 'P2', type: 'product' })
-    expect(orchestrator.getSourceRows('products').map((row) => row.id)).toEqual(['P2'])
+    expect(orchestrator.getSourceRows('products').map((row) => row.id)).toEqual(['L2', 'L5'])
 
     dataStore.data!.allocationLines.push(
       { id: 'A2-L2', quantity: 5, sourceLineId: 'L2', transportPlaceId: 'ORD-001-TP-001' },

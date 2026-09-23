@@ -8,11 +8,11 @@
 
 ### Requirement: Initial active transport place
 
-При открытии новой процедуры `ShipmentStore` SHALL автоматически создать ровно одно пустое транспортное место текущего заказа с sequence 1 и номером `ТМ-001`. Это место SHALL сразу стать активным. Автоматическая инициализация SHALL NOT создавать строки распределения или менять исходные строки, остатки и прогресс.
+При загрузке snapshot оркестратор SHALL выбирать первое существующее ТМ. Если snapshot не содержит ТМ, первое место SHALL создаваться при валидном переносе или явной команде ручного создания. Инициализация SHALL NOT менять исходные строки, остатки и прогресс.
 
 #### Scenario: Open a new procedure
 
-- **WHEN** пользователь открывает новую процедуру формирования ТМ для заказа с пустым начальным списком ТМ
+- **WHEN** пользователь открывает процедуру со snapshot, содержащим пустое ТМ-001
 - **THEN** store содержит пустое активное ТМ-001 с sequence 1
 - **AND** allocationLines пуст, remainingTotals совпадает с исходными итогами и distributionProgress равен 0
 
@@ -24,7 +24,7 @@
 
 ### Requirement: Local transport place creation
 
-`ShipmentStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального существующего sequence и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
+`ShipmentDataStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального существующего sequence и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
 
 #### Scenario: Create the first transport place
 
@@ -45,12 +45,12 @@
 
 ### Requirement: Active transport place
 
-`ShipmentStore` SHALL retain its ID-based active transport-place state and creation command behavior for legacy controls. In the new data-backed workflow, clicking a transport-place row or scanning its barcode SHALL update active transport place through `ScanMachine`; `ScannerWorkflowOrchestrator` SHALL validate and apply that ID to `ShipmentDataStore`. Selection SHALL preserve source filter, selected source entity and both table display modes. Active transport-place selection SHALL NOT distribute, return, or otherwise change allocations.
+`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter и режимы таблиц, очищать выбор товара назначения и SHALL NOT менять allocations.
 
 #### Scenario: Created place becomes active
 
-- **WHEN** пользователь creates a new transport place through a legacy control
-- **THEN** legacy `activeTransportPlaceId` equals the ID of the created place
+- **WHEN** пользователь создаёт ТМ вручную
+- **THEN** активный ID машины и data store равен ID созданного места
 
 #### Scenario: Select an existing transport place by mouse or scanner
 
@@ -82,7 +82,7 @@ state тогда и только тогда, когда её ID совпадае
 
 - **WHEN** загруженный snapshot содержит `ТМ-001` и `ТМ-002` без распределений
 - **THEN** пустое сообщение скрыто, а таблица показывает две строки в порядке создания
-- **AND** у обеих строк отображаются нулевые показатели; если active place отсутствует, ни одна строка не обозначается активной
+- **AND** у обеих строк отображаются нулевые показатели; первое ТМ обозначено активным
 
 ### Requirement: Creation does not distribute goods
 

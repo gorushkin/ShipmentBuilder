@@ -26,13 +26,12 @@ result для нераспознанного кода и не обращатьс
 
 ### Requirement: Unambiguous short mock barcode formats
 
-Mock data SHALL предоставлять короткие уникальные штрихкоды с префиксами:
-`C*` для контейнеров, `P*` для товаров, `TM*` для транспортных мест и
-`CMD:QTY` для команды произвольного количества. Resolver SHALL использовать
-exact matching нормализованного значения, а не классификацию по длине.
+Resolver SHALL сохранять C*, P*, TM* и поддерживать CMD:CONTAINER, CMD:NEXT, CMD:LINE, CMD:PRODUCT, CMD:ALL, CMD:QTY, CMD:RETURN-ALL, CMD:RETURN, CMD:RETURN-QTY, CMD:CANCEL по централизованному каталогу design.md. Matching SHALL быть точным после trim().toUpperCase(); resolver SHALL NOT исполнять операции.
 
-#### Scenario: Resolve each prototype barcode class
+#### Scenario: Commands
+- **WHEN** поступает любой код каталога в смешанном регистре
+- **THEN** возвращается соответствующая typed command
 
-- **WHEN** resolver получает `C1`, `P1`, `TM1` и `CMD:QTY`
-- **THEN** он возвращает соответственно событие контейнера, товара, ТМ и
-  команды количества
+#### Scenario: Unknown command
+- **WHEN** поступает CMD:UNKNOWN
+- **THEN** возвращается unknown без операции

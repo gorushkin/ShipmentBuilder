@@ -6,12 +6,13 @@ import { observer } from 'mobx-react-lite'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { ActionPanelStatus } from '@/features/action-panel-status'
 
-import { BarcodeInputController } from './barcode-input-controller'
 import './barcode-input.css'
+import { BarcodeInputController } from './barcode-input-controller'
 
 interface BarcodeInputProps {
-  feedback: string
+  actionStatus: ActionPanelStatus
   isProcessing: boolean
   onCancel?: () => void
   onCompleted: (value: string) => void
@@ -29,7 +30,7 @@ function hasOpenDialog(): boolean {
 }
 
 export const BarcodeInput = observer(function BarcodeInput({
-  feedback,
+  actionStatus,
   isProcessing,
   onCancel,
   onCompleted,
@@ -99,10 +100,13 @@ export const BarcodeInput = observer(function BarcodeInput({
   }
 
   return (
-    <section className="barcode-input" aria-label="Сканирование штрихкода">
-      <div className="barcode-input__status">
+    <section className="barcode-input" aria-label="Панель действий и сканирование штрихкода">
+      <div
+        className={`barcode-input__status barcode-input__status--${actionStatus.tone}`}
+        role="status"
+      >
         <ScanBarcode aria-hidden="true" />
-        <span>{isProcessing ? 'Обработка…' : feedback}</span>
+        <span>{actionStatus.message}</span>
       </div>
       <form className="barcode-input__form" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="barcode-input">

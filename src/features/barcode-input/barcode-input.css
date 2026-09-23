@@ -10,17 +10,32 @@
 }
 
 .barcode-input__status {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
+  flex: 1 1 360px;
+  min-width: 220px;
   color: #357458;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 
+.barcode-input__status--processing,
 .barcode-input:has(input:disabled) .barcode-input__status {
   color: #64748b;
+}
+
+.barcode-input__status--error {
+  color: #b42318;
+}
+
+.barcode-input__status--info {
+  color: #245ad5;
+}
+
+.barcode-input__status span {
+  min-width: 0;
 }
 
 .barcode-input__status svg,
@@ -30,8 +45,8 @@
 }
 
 .barcode-input__form {
-  min-width: 0;
-  flex: 1;
+  min-width: 180px;
+  flex: 0 1 420px;
 }
 
 .barcode-input__field--hidden {

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 import { observer } from 'mobx-react-lite'
 
+import { getActionPanelStatus } from '@/features/action-panel-status'
 import { BarcodeInput } from '@/features/barcode-input'
 import {
   barcodeInputAdapter,
@@ -21,11 +22,18 @@ export const ShipmentPage = observer(function ShipmentPage() {
     scannerWorkflowOrchestrator.start()
     return () => scannerWorkflowOrchestrator.dispose()
   }, [])
+  const actionStatus = getActionPanelStatus({
+    activeTransportPlaceId: scanMachine.activeTransportPlaceId,
+    feedback: scanMachine.feedback,
+    hasRemainingItems: scannerWorkflowOrchestrator.remainingTotals.units > 0,
+    hasSnapshot: scannerWorkflowOrchestrator.hasSnapshot,
+    step: scanMachine.step,
+  })
   return (
     <main className="shipment-page">
       <ShipmentHeader />
       <BarcodeInput
-        feedback={scanMachine.feedback.message}
+        actionStatus={actionStatus}
         isProcessing={scanMachine.isTransferring}
         onCancel={() => scannerWorkflowOrchestrator.command('cancel')}
         onCompleted={(value) => barcodeInputAdapter.submit(value)}

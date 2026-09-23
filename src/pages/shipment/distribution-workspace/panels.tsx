@@ -222,7 +222,7 @@ export const TransferActions = observer(function TransferActions() {
   ] as const
 
   const returnActions = [
-    ['return-product', 'Вернуть товар'],
+    ['return-product', 'Вернуть строку'],
     ['request-return-quantity', 'Вернуть количество'],
     ['return-transport-place', 'Вернуть всё из ТМ'],
   ] as const

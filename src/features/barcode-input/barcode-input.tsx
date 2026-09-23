@@ -36,8 +36,7 @@ export const BarcodeInput = observer(function BarcodeInput({
   onCompleted,
 }: BarcodeInputProps) {
   const [controller] = useState(() => new BarcodeInputController())
-  // TODO: make isExpanded false by default
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [value, setValue] = useState('')
 
   const focusInput = useCallback(
@@ -54,8 +53,11 @@ export const BarcodeInput = observer(function BarcodeInput({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !hasOpenDialog()) onCancel?.()
-      if (event.key === 'F2' && !isTextEntryTarget(event.target)) {
+      if (
+        event.key === 'F2' &&
+        !hasOpenDialog() &&
+        (!isTextEntryTarget(event.target) || controller.isFocused())
+      ) {
         event.preventDefault()
         setIsExpanded(true)
         focusInput()
@@ -66,7 +68,10 @@ export const BarcodeInput = observer(function BarcodeInput({
         event.preventDefault()
         setIsExpanded(false)
         focusInput()
+        return
       }
+
+      if (event.key === 'Escape' && !hasOpenDialog()) onCancel?.()
     }
 
     window.addEventListener('keydown', handleKeyDown)

@@ -15,7 +15,7 @@ function ShipmentTableHeader() {
   return (
     <TableHeader>
       <TableRow>
-        {['Контейнер', 'SKU', 'ШТ', 'Короба', 'Объём, м³'].map((label) => (
+        {['Контейнер', 'SKU', 'ЧЗ', 'ШТ', 'Кол-во мест', 'Объём, м³'].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
@@ -60,6 +60,7 @@ export function SourceContainerTable({
               </span>
             </TableCell>
             <TableCell>{row.sku}</TableCell>
+            <TableCell>{row.isMarked ? 'Да' : 'Нет'}</TableCell>
             <TableCell>{number(row.units, 0)}</TableCell>
             <TableCell>{number(row.boxes)}</TableCell>
             <TableCell>{number(row.volume, 4)}</TableCell>

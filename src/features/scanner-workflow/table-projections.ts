@@ -4,6 +4,7 @@ export type DestinationTableMode = 'transport-places' | 'transport-place-product
 export interface SourceContainerTableRow {
   boxes: number
   id: string
+  isMarked: boolean
   name: string
   sku: number
   units: number
@@ -16,6 +17,7 @@ export interface SourceProductTableRow {
   containerName?: string
   containers: number
   id: string
+  isMarked: boolean
   name: string
   productId?: string
   sourceLineId?: string
@@ -26,6 +28,7 @@ export interface DestinationTransportPlaceTableRow {
   boxes: number
   id: string
   isActive: boolean
+  isMarked: boolean
   name: string
   sku: number
   units: number
@@ -36,6 +39,7 @@ export interface DestinationProductTableRow {
   boxes: number
   code: string
   id: string
+  isMarked: boolean
   name: string
   units: number
 }

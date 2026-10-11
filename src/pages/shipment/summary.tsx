@@ -12,7 +12,7 @@ export function Metrics({ totals }: { totals: ShipmentTotals }) {
     ['Контейнеров', number(totals.containers, 0)],
     ['SKU', number(totals.sku, 0)],
     ['Штук', number(totals.units, 0)],
-    ['Коробов', number(totals.boxes)],
+    ['Кол-во мест', number(totals.boxes)],
     ['Вес', `${number(totals.weightKg)} кг`],
     ['Объём', `${number(totals.volumeM3, 4)} м³`],
   ]

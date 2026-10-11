@@ -179,8 +179,8 @@
   padding: 16px;
 }
 .panel-title {
-  display: grid;
-  grid-template-columns: 18px 1fr auto auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -421,4 +421,13 @@
   min-height: 0;
   overflow-y: auto;
   align-content: flex-start;
+}
+
+.panel-title .mode-control {
+  margin-left: auto;
+  width: 132px;
+}
+.transfer-action-groups {
+  display: grid;
+  gap: 24px;
 }

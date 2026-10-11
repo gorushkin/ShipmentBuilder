@@ -448,6 +448,7 @@ export class ScannerWorkflowOrchestrator {
         {
           boxes: number
           id: string
+          isMarked: boolean
           name: string
           products: Set<string>
           units: number
@@ -464,11 +465,13 @@ export class ScannerWorkflowOrchestrator {
         const row = rows.get(container.id) ?? {
           boxes: 0,
           id: container.id,
+          isMarked: false,
           name: container.barcode,
           products: new Set<string>(),
           units: 0,
           volume: 0,
         }
+        row.isMarked ||= product.isMarked
         row.products.add(product.id)
         row.units += line.remainingQuantity
         row.boxes += line.remainingQuantity / product.unitsPerBox
@@ -493,6 +496,7 @@ export class ScannerWorkflowOrchestrator {
               data.containers.find((c) => c.id === line.containerId)?.barcode ?? line.containerId,
             containers: 1,
             id: line.id,
+            isMarked: product.isMarked,
             name: product.name,
             productId: product.id,
             sourceLineId: line.id,
@@ -509,6 +513,7 @@ export class ScannerWorkflowOrchestrator {
         code: string
         containers: Set<string>
         id: string
+        isMarked: boolean
         name: string
         units: number
       }
@@ -521,6 +526,7 @@ export class ScannerWorkflowOrchestrator {
         code: product.code,
         containers: new Set<string>(),
         id: product.id,
+        isMarked: product.isMarked,
         name: product.name,
         units: 0,
       }
@@ -553,6 +559,7 @@ export class ScannerWorkflowOrchestrator {
           boxes: number
           id: string
           isActive: boolean
+          isMarked: boolean
           name: string
           products: Set<string>
           sequence: number
@@ -566,6 +573,7 @@ export class ScannerWorkflowOrchestrator {
             boxes: 0,
             id: place.id,
             isActive: place.id === this.dataStore.activeTransportPlaceId,
+            isMarked: false,
             name: place.number,
             products: new Set<string>(),
             sequence: place.sequence,
@@ -581,6 +589,7 @@ export class ScannerWorkflowOrchestrator {
         const sourceLine = sourceLinesById.get(allocation.sourceLineId)
         const product = sourceLine ? productsById.get(sourceLine.productId) : undefined
         if (!row || !product) continue
+        row.isMarked ||= product.isMarked
         row.products.add(product.id)
         row.units += allocation.quantity
         row.boxes += allocation.quantity / product.unitsPerBox
@@ -607,6 +616,7 @@ export class ScannerWorkflowOrchestrator {
         boxes: 0,
         code: product.code,
         id: product.id,
+        isMarked: product.isMarked,
         name: product.name,
         units: 0,
       }

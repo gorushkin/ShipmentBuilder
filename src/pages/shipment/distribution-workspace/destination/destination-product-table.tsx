@@ -17,7 +17,7 @@ function TransportPlaceProductTableHeader() {
   return (
     <TableHeader>
       <TableRow>
-        {['Код товара', 'Наименование', 'ШТ', 'Короба'].map((label) => (
+        {['Код товара', 'Наименование', 'ЧЗ', 'ШТ', 'Кол-во мест'].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
@@ -64,6 +64,7 @@ export const DestinationProductTable = observer(function DestinationProductTable
           >
             <TableCell>{row.code}</TableCell>
             <TableCell>{row.name}</TableCell>
+            <TableCell>{row.isMarked ? 'Да' : 'Нет'}</TableCell>
             <TableCell>{number(row.units, 0)}</TableCell>
             <TableCell>{number(row.boxes)}</TableCell>
           </TableRow>

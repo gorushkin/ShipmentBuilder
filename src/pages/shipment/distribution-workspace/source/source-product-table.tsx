@@ -15,7 +15,7 @@ function ProductTableHeader() {
   return (
     <TableHeader>
       <TableRow>
-        {['Код товара', 'Наименование', 'ШТ', 'Короба', 'Контейнеров'].map((label) => (
+        {['Код товара', 'Наименование', 'ЧЗ', 'ШТ', 'Кол-во мест', 'Контейнеров'].map((label) => (
           <TableHead scope="col" key={label}>
             {label}
           </TableHead>
@@ -66,6 +66,7 @@ export function SourceProductTable({
           >
             <TableCell>{row.code}</TableCell>
             <TableCell>{row.name}</TableCell>
+            <TableCell>{row.isMarked ? 'Да' : 'Нет'}</TableCell>
             <TableCell>{number(row.units, 0)}</TableCell>
             <TableCell>{number(row.boxes)}</TableCell>
             <TableCell>{row.containerName ?? number(row.containers, 0)}</TableCell>

@@ -169,8 +169,6 @@ export const SourcePanel = observer(function SourcePanel() {
           <Badge variant="secondary" className="count">
             {rowCount}
           </Badge>
-        </div>
-        <div className="panel-toolbar">
           <SourceModeSelect
             mode={mode}
             onModeChange={scannerWorkflowOrchestrator.setSourceMode.bind(
@@ -218,10 +216,8 @@ export const DestinationPanel = observer(function DestinationPanel() {
           <Badge variant="secondary" className="count">
             {rowCount}
           </Badge>
-          <CreateTransportPlaceAction />
-        </div>
-        <div className="panel-toolbar">
           <DestinationModeSelect mode={mode} onModeChange={setMode} />
+          <CreateTransportPlaceAction />
         </div>
       </header>
       <div className="table-scroll destination-scroll">{destinationTable}</div>
@@ -334,25 +330,31 @@ export const TransferActions = observer(function TransferActions() {
 
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
-      <div className="transfer-actions-list">
-        {transferActions.map(renderAction)}
-        <UnavailableButton
-          className="future-action"
-          variant="outline"
-          shortcut={shipmentShortcuts.pal}
-          title={commands.pal.description}
-        >
-          {commands.pal.label}
-        </UnavailableButton>
-        <UnavailableButton
-          className="future-action"
-          variant="outline"
-          shortcut={shipmentShortcuts.mix}
-          title={commands.mix.description}
-        >
-          {commands.mix.label}
-        </UnavailableButton>
-        {returnActions.map(renderAction)}
+      <div className="transfer-action-groups">
+        <div className="transfer-actions-list" role="group" aria-label="Перенос в ТМ">
+          {transferActions.map(renderAction)}
+        </div>
+        <div className="transfer-actions-list" role="group" aria-label="PAL/MIX">
+          <UnavailableButton
+            className="future-action"
+            variant="outline"
+            shortcut={shipmentShortcuts.pal}
+            title={commands.pal.description}
+          >
+            {commands.pal.label}
+          </UnavailableButton>
+          <UnavailableButton
+            className="future-action"
+            variant="outline"
+            shortcut={shipmentShortcuts.mix}
+            title={commands.mix.description}
+          >
+            {commands.mix.label}
+          </UnavailableButton>
+        </div>
+        <div className="transfer-actions-list" role="group" aria-label="Возврат из ТМ">
+          {returnActions.map(renderAction)}
+        </div>
       </div>
       {workflow.isWaiting && (
         <Button

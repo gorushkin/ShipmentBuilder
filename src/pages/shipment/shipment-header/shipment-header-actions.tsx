@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { commands } from '@/features/command-config'
 import { useShortcut } from '@/features/keyboard-input'
 import { shipmentShortcuts } from '@/pages/shipment/shared/shortcuts'
@@ -130,7 +129,7 @@ export function PrintTMLabelButton() {
 
 export function PrintReportsButton() {
   const [open, setOpen] = useState(false)
-  const [selectedReport, setSelectedReport] = useState('Отчет 1')
+  const [selectedReports, setSelectedReports] = useState(['Отчет 1'])
 
   const shortcut = shipmentShortcuts.printReports
   const openReports = () => {
@@ -141,7 +140,7 @@ export function PrintReportsButton() {
   const reports = ['Отчет 1', 'Отчет 2', 'Отчет 3']
 
   const handlePrint = () => {
-    console.info('Печать отчета', selectedReport)
+    console.info('Печать отчетов', selectedReports)
     setOpen(false)
   }
 
@@ -162,26 +161,35 @@ export function PrintReportsButton() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Печать</DialogTitle>
-            <DialogDescription>Выберите отчет для печати.</DialogDescription>
+            <DialogDescription>Выберите отчеты для печати.</DialogDescription>
           </DialogHeader>
 
-          <RadioGroup
-            aria-label="Выбор отчета"
-            className="grid gap-3 py-2"
-            onValueChange={setSelectedReport}
-            value={selectedReport}
-          >
+          <fieldset className="grid gap-3 py-2">
+            <legend className="sr-only">Выбор отчетов</legend>
             {reports.map((report) => (
               <label key={report} className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value={report} />
+                <input
+                  type="checkbox"
+                  checked={selectedReports.includes(report)}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setSelectedReports((selected) =>
+                      checked
+                        ? [...selected, report]
+                        : selected.filter((value) => value !== report),
+                    )
+                  }}
+                />
                 <span>{report}</span>
               </label>
             ))}
-          </RadioGroup>
+          </fieldset>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Отмена</DialogClose>
-            <Button onClick={handlePrint}>Печать</Button>
+            <Button disabled={selectedReports.length === 0} onClick={handlePrint}>
+              Печать
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -193,8 +201,6 @@ export function ShipmentHeaderActions() {
   return (
     <div className="order-actions" aria-label="Обмен и печать">
       <SendTo1CButton />
-      <ReceiveSSCCButton />
-      <ReceiveLabelsButton />
       <RepeatShipmentButton />
       <PrintTMLabelButton />
       <PrintReportsButton />

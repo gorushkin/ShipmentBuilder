@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 
+import { cn } from 'cn'
 import { ScanBarcode } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 
@@ -10,8 +11,14 @@ import type { ActionPanelStatus } from '@/features/action-panel-status'
 import { commands } from '@/features/command-config'
 import { barcodeShortcuts } from '@/features/keyboard-input'
 
-import './barcode-input.css'
 import { useBarcodeInput } from './use-barcode-input'
+
+const statusClassNames: Record<ActionPanelStatus['tone'], string> = {
+  error: 'text-error',
+  info: 'text-primary',
+  processing: 'text-muted-foreground',
+  success: 'text-success',
+}
 
 interface BarcodeInputProps {
   actionStatus: ActionPanelStatus
@@ -44,23 +51,28 @@ export const BarcodeInput = observer(function BarcodeInput({
   }
 
   return (
-    <section className="barcode-input" aria-label="Панель действий и сканирование штрихкода">
+    <section
+      className="group/barcode flex min-h-[42px] items-center gap-3 rounded-lg border border-summary-border bg-card px-2.5 py-1.5"
+      aria-label="Панель действий и сканирование штрихкода"
+    >
       <div
-        className={`barcode-input__status barcode-input__status--${actionStatus.tone}`}
+        className={cn(
+          'flex min-w-[220px] flex-[1_1_360px] items-center gap-[7px] text-[15px] leading-[1.35] font-semibold group-has-[input:disabled]/barcode:text-muted-foreground',
+          statusClassNames[actionStatus.tone],
+        )}
         role="status"
       >
-        <ScanBarcode aria-hidden="true" />
-        <span>{actionStatus.message}</span>
+        <ScanBarcode className="size-3.5" aria-hidden="true" />
+        <span className="min-w-0">{actionStatus.message}</span>
       </div>
       {isExpanded && (
         // TODO: move this form to a separate component for better readability and maintainability
-        <form className="barcode-input__form" onSubmit={handleSubmit}>
+        <form className="min-w-[180px] flex-[0_1_420px]" onSubmit={handleSubmit}>
           <label className="sr-only" htmlFor="barcode-input">
             Штрихкод
           </label>
           <Input
             aria-label="Штрихкод"
-            className="barcode-input__field"
             id="barcode-input"
             disabled={isProcessing}
             onChange={(event) => controller.setValue(event.target.value)}
@@ -71,6 +83,7 @@ export const BarcodeInput = observer(function BarcodeInput({
         </form>
       )}
       <Button
+        className="text-[11px] leading-[1.428571] [&_kbd]:rounded-[3px] [&_kbd]:border-summary-border [&_kbd]:px-1 [&_kbd]:py-px [&_kbd]:font-[650] [&_kbd]:text-muted-foreground"
         shortcut={barcodeShortcuts.toggle}
         title={commands.barcodeToggle.description}
         aria-controls={isExpanded ? 'barcode-input' : undefined}
@@ -80,7 +93,7 @@ export const BarcodeInput = observer(function BarcodeInput({
         type="button"
         variant="outline"
       >
-        <ScanBarcode aria-hidden="true" />
+        <ScanBarcode className="size-3.5" aria-hidden="true" />
         {commands.barcodeToggle.label}
       </Button>
     </section>

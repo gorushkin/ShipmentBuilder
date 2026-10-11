@@ -45,7 +45,7 @@ function SourceModeSelect({
         if (value === 'containers' || value === 'products') onModeChange(value)
       }}
     >
-      <SelectTrigger className="mode-control" size="sm" aria-label="Режим источника">
+      <SelectTrigger className="ml-auto w-[132px]" size="sm" aria-label="Режим источника">
         <SelectValue>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -73,7 +73,7 @@ function DestinationModeSelect({
           onModeChange(value)
       }}
     >
-      <SelectTrigger className="mode-control" size="sm" aria-label="Режим транспортных мест">
+      <SelectTrigger className="ml-auto w-[132px]" size="sm" aria-label="Режим транспортных мест">
         <SelectValue>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -162,12 +162,20 @@ export const SourcePanel = observer(function SourcePanel() {
     )
 
   return (
-    <section className="work-panel" aria-labelledby="source-title">
-      <header className="panel-header">
-        <div className="panel-title">
-          <Box aria-hidden="true" />
-          <h2 id="source-title">К распределению</h2>
-          <Badge variant="secondary" className="count">
+    <section
+      className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-panel-border bg-card"
+      aria-labelledby="source-title"
+    >
+      <header className="grid gap-4 p-4">
+        <div className="flex min-h-8 flex-wrap items-center gap-2">
+          <Box className="size-[17px] text-primary" aria-hidden="true" />
+          <h2 className="text-[14px] font-[650]" id="source-title">
+            К распределению
+          </h2>
+          <Badge
+            variant="secondary"
+            className="rounded-[5px] bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
             {rowCount}
           </Badge>
           <SourceModeSelect
@@ -178,7 +186,7 @@ export const SourcePanel = observer(function SourcePanel() {
           />
         </div>
         {sourceFilter && (
-          <div className="source-filter-indicator">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[#365487]">
             <span>
               {sourceFilter.type === 'container' ? 'Контейнер' : 'Товар'}:{' '}
               {scannerWorkflowOrchestrator.sourceFilterLabel}
@@ -187,7 +195,7 @@ export const SourcePanel = observer(function SourcePanel() {
           </div>
         )}
       </header>
-      <div className="table-scroll">{sourceTable}</div>
+      <div className="min-h-0 min-w-0 overflow-auto">{sourceTable}</div>
     </section>
   )
 })
@@ -231,12 +239,20 @@ export const DestinationPanel = observer(function DestinationPanel() {
   )
 
   return (
-    <section className="work-panel" aria-labelledby="destination-title">
-      <header className="panel-header">
-        <div className="panel-title">
-          <Layers aria-hidden="true" />
-          <h2 id="destination-title">Транспортные места</h2>
-          <Badge variant="secondary" className="count">
+    <section
+      className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-panel-border bg-card"
+      aria-labelledby="destination-title"
+    >
+      <header className="grid gap-4 p-4">
+        <div className="flex min-h-8 flex-wrap items-center gap-2">
+          <Layers className="size-[17px] text-primary" aria-hidden="true" />
+          <h2 className="text-[14px] font-[650]" id="destination-title">
+            Транспортные места
+          </h2>
+          <Badge
+            variant="secondary"
+            className="rounded-[5px] bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground"
+          >
             {rowCount}
           </Badge>
           <DestinationModeSelect mode={mode} onModeChange={setMode} />
@@ -244,7 +260,7 @@ export const DestinationPanel = observer(function DestinationPanel() {
           <DeleteTransportPlaceAction />
         </div>
         {isProductMode && activePlace && (
-          <div className="source-filter-indicator">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[#365487]">
             <span>ТМ: {activePlace.name}</span>
             <Button
               onClick={clearFilter}
@@ -259,7 +275,9 @@ export const DestinationPanel = observer(function DestinationPanel() {
           </div>
         )}
       </header>
-      <div className="table-scroll destination-scroll">{destinationTable}</div>
+      <div className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(200px,1fr)] overflow-auto">
+        {destinationTable}
+      </div>
     </section>
   )
 })
@@ -288,7 +306,7 @@ const TransferAction = observer(function TransferAction({
   return (
     <Button
       variant="outline"
-      className="transfer-button"
+      className="grid h-auto min-h-[50px] grid-cols-[14px_minmax(0,1fr)_max-content] gap-2 p-2.5 text-left text-[11px] leading-normal whitespace-normal [&>[data-slot=kbd]]:col-start-3"
       disabled={!available()}
       onClick={run}
       shortcut={shortcut}
@@ -368,14 +386,17 @@ export const TransferActions = observer(function TransferActions() {
   )
 
   return (
-    <aside className="transfer-actions" aria-label="Распределение товаров">
-      <div className="transfer-action-groups">
-        <div className="transfer-actions-list" role="group" aria-label="Перенос в ТМ">
+    <aside
+      className="grid min-h-0 content-start gap-2.5 overflow-y-auto"
+      aria-label="Распределение товаров"
+    >
+      <div className="grid gap-6">
+        <div className="grid gap-2.5" role="group" aria-label="Перенос в ТМ">
           {transferActions.map(renderAction)}
         </div>
-        <div className="transfer-actions-list" role="group" aria-label="PAL/MIX">
+        <div className="grid gap-2.5" role="group" aria-label="PAL/MIX">
           <UnavailableButton
-            className="future-action"
+            className="w-full min-h-[38px] text-[11px]"
             variant="outline"
             shortcut={shipmentShortcuts.pal}
             title={commands.pal.description}
@@ -383,7 +404,7 @@ export const TransferActions = observer(function TransferActions() {
             {commands.pal.label}
           </UnavailableButton>
           <UnavailableButton
-            className="future-action"
+            className="w-full min-h-[38px] text-[11px]"
             variant="outline"
             shortcut={shipmentShortcuts.mix}
             title={commands.mix.description}
@@ -391,7 +412,7 @@ export const TransferActions = observer(function TransferActions() {
             {commands.mix.label}
           </UnavailableButton>
         </div>
-        <div className="transfer-actions-list" role="group" aria-label="Возврат из ТМ">
+        <div className="grid gap-2.5" role="group" aria-label="Возврат из ТМ">
           {returnActions.map(renderAction)}
         </div>
       </div>

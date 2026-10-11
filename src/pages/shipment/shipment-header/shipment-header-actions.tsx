@@ -57,7 +57,7 @@ export function SendTo1CButton() {
       label={commands.sendTo1C.label}
       shortcut={shipmentShortcuts.sendTo1C}
       title={commands.sendTo1C.description}
-      icon={<Send aria-hidden="true" />}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -73,7 +73,7 @@ export function ReceiveSSCCButton() {
       label={commands.receiveSSCC.label}
       shortcut={shipmentShortcuts.receiveSSCC}
       title={commands.receiveSSCC.description}
-      icon={<Send aria-hidden="true" />}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -89,7 +89,7 @@ export function ReceiveLabelsButton() {
       label={commands.receiveLabels.label}
       shortcut={shipmentShortcuts.receiveLabels}
       title={commands.receiveLabels.description}
-      icon={<Send aria-hidden="true" />}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -105,7 +105,7 @@ export function RepeatShipmentButton() {
       label={commands.repeatShipment.label}
       shortcut={shipmentShortcuts.repeatShipment}
       title={commands.repeatShipment.description}
-      icon={<Send aria-hidden="true" />}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -121,7 +121,7 @@ export function PrintTMLabelButton() {
       label={commands.printLabel.label}
       shortcut={shipmentShortcuts.printLabel}
       title={commands.printLabel.description}
-      icon={<Printer aria-hidden="true" />}
+      icon={<Printer className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -142,7 +142,7 @@ export function Print1CLabelsButton() {
       shortcut={shortcut}
       title={command.description}
     >
-      <Printer aria-hidden="true" />
+      <Printer className="size-[13px]" aria-hidden="true" />
       {command.label}
     </Button>
   )
@@ -174,7 +174,7 @@ export function PrintReportsButton() {
         shortcut={shortcut}
         title={commands.printReports.description}
       >
-        <Printer aria-hidden="true" />
+        <Printer className="size-[13px]" aria-hidden="true" />
         {commands.printReports.label}
       </Button>
 
@@ -220,7 +220,10 @@ export function PrintReportsButton() {
 
 export function ShipmentHeaderActions() {
   return (
-    <div className="order-actions" aria-label="Обмен и печать">
+    <div
+      className="flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 overflow-x-visible [&>*]:flex-none [&_button]:text-[11px] [&_button]:whitespace-nowrap [@media(max-width:1300px)]:[&_button]:px-[7px]"
+      aria-label="Обмен и печать"
+    >
       <SendTo1CButton />
       <RepeatShipmentButton />
       <PrintTMLabelButton />

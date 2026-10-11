@@ -10,13 +10,18 @@ import {
 } from '@/components/ui/table'
 import type { SourceContainerTableRow } from '@/features/scanner-workflow'
 import { number } from '@/pages/shipment/shared/format'
+import {
+  selectableRowClassName,
+  tableHeadClassName,
+  tableCellClassName,
+} from '@/pages/shipment/shared/table-styles'
 
 function ShipmentTableHeader() {
   return (
     <TableHeader>
       <TableRow>
         {['Контейнер', 'SKU', 'ЧЗ', 'ШТ', 'Кол-во мест', 'Объём, м³'].map((label) => (
-          <TableHead scope="col" key={label}>
+          <TableHead className={tableHeadClassName} scope="col" key={label}>
             {label}
           </TableHead>
         ))}
@@ -35,13 +40,17 @@ export function SourceContainerTable({
   selectedContainerId: null | string
 }) {
   return (
-    <Table aria-label="Контейнеры отбора">
+    <Table
+      containerClassName="overflow-visible"
+      className="tabular-nums"
+      aria-label="Контейнеры отбора"
+    >
       <ShipmentTableHeader />
       <TableBody>
         {rows.map((row) => (
           <TableRow
             aria-selected={selectedContainerId === row.id}
-            className="source-container-row"
+            className={selectableRowClassName}
             data-active={selectedContainerId === row.id}
             key={row.id}
             onClick={() => onSelect(row.id)}
@@ -53,17 +62,17 @@ export function SourceContainerTable({
             }}
             tabIndex={0}
           >
-            <TableCell>
-              <span className="container-name">
-                <Box aria-hidden="true" />
+            <TableCell className={tableCellClassName}>
+              <span className="grid grid-cols-[17px_auto] items-center justify-start gap-2 font-semibold">
+                <Box className="size-4 text-[#6582b3]" aria-hidden="true" />
                 {row.name}
               </span>
             </TableCell>
-            <TableCell>{row.sku}</TableCell>
-            <TableCell>{row.isMarked ? 'Да' : 'Нет'}</TableCell>
-            <TableCell>{number(row.units, 0)}</TableCell>
-            <TableCell>{number(row.boxes)}</TableCell>
-            <TableCell>{number(row.volume, 4)}</TableCell>
+            <TableCell className={tableCellClassName}>{row.sku}</TableCell>
+            <TableCell className={tableCellClassName}>{row.isMarked ? 'Да' : 'Нет'}</TableCell>
+            <TableCell className={tableCellClassName}>{number(row.units, 0)}</TableCell>
+            <TableCell className={tableCellClassName}>{number(row.boxes)}</TableCell>
+            <TableCell className={tableCellClassName}>{number(row.volume, 4)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

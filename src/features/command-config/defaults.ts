@@ -19,6 +19,16 @@ export const defaultCommands = {
     label: 'Создать ТМ',
     shortcut: 'n',
   },
+  deleteTransportPlace: {
+    description: 'Удалить выбранное ТМ с подтверждением и возвратом товаров',
+    label: 'Удалить ТМ',
+    shortcut: 'shift+n',
+  },
+  historyToggle: {
+    description: 'Развернуть / свернуть историю действий',
+    label: 'История',
+    shortcut: 'F3',
+  },
   mix: {
     description: 'Будет доступно в следующих версиях прототипа',
     label: 'MIX',

@@ -2,6 +2,7 @@ import { action, makeObservable, observable, reaction, type IReactionDisposer } 
 
 import { ShipmentDataStore } from '@/domain/shipment/shipment-data-store'
 import type { ShipmentData } from '@/domain/shipment/types'
+import { ActionHistoryStore } from '@/features/action-history'
 import { noopAlertService, type AlertService } from '@/features/application-alerts'
 import { ScanMachine, type ResolvedScanEvent, type ScanEvent } from '@/features/scan-machine'
 import type {
@@ -29,6 +30,8 @@ export class ScannerWorkflowOrchestrator {
   private readonly loader: ShipmentSnapshotLoader
   private readonly machine: ScanMachine
   private readonly alerts: AlertService
+  readonly actionHistory: ActionHistoryStore
+  private historyOrderId: string | null = null
   private started = false
   private lifecycleId = 0
   private lastExecutedId: string | null = null
@@ -39,11 +42,13 @@ export class ScannerWorkflowOrchestrator {
     dataStore: ShipmentDataStore,
     loader: ShipmentSnapshotLoader,
     alerts: AlertService = noopAlertService,
+    actionHistory: ActionHistoryStore = new ActionHistoryStore(),
   ) {
     this.machine = machine
     this.dataStore = dataStore
     this.loader = loader
     this.alerts = alerts
+    this.actionHistory = actionHistory
     makeObservable(this, {
       setSourceMode: action,
       sourceMode: observable,
@@ -59,11 +64,13 @@ export class ScannerWorkflowOrchestrator {
       () => ({
         activeTransportPlaceId: this.machine.activeTransportPlaceId,
         effectId: this.machine.pendingEffect?.id ?? null,
+        orderId: this.order?.id,
         selectedSource: this.machine.selectedSource,
         source: this.machine.source,
         step: this.machine.step,
       }),
       (snapshot, previous) => {
+        if (snapshot.orderId !== previous.orderId) this.initializeHistory()
         if (snapshot.source !== previous.source) this.syncSourceFilter()
         if (snapshot.activeTransportPlaceId !== previous.activeTransportPlaceId) {
           this.syncActiveTransportPlace()
@@ -76,6 +83,7 @@ export class ScannerWorkflowOrchestrator {
       },
     )
     if (!this.dataStore.hasSnapshot) void this.load(lifecycleId)
+    else this.initializeHistory()
     if (this.machine.pendingEffect) this.execute(this.machine.pendingEffect)
   }
 
@@ -212,6 +220,7 @@ export class ScannerWorkflowOrchestrator {
     return Boolean(target && this.dataStore.validateSource(target).ok)
   }
   private reject(message: string): void {
+    this.actionHistory.append({ level: 'error', title: message, type: 'workflow-rejected' })
     this.machine.send({ message, type: 'workflow-rejected' })
   }
   private validateOperation(operation: Operation, transportPlaceId: string | null): string | null {
@@ -251,7 +260,13 @@ export class ScannerWorkflowOrchestrator {
         const created = this.dataStore.createTransportPlace()
         if (!created.ok) throw new Error('Не удалось создать транспортное место')
         transportPlaceId = created.value.id
+        this.recordPlaceCreated(created.value.number)
       }
+      const returnedQuantity =
+        operation.kind === 'return'
+          ? (operation.quantity ??
+            this.dataStore.returnAvailable(transportPlaceId, operation.productId))
+          : 0
       const result =
         operation.kind === 'transfer'
           ? this.dataStore.transferScoped(operation.scope, transportPlaceId, operation.quantity)
@@ -265,8 +280,25 @@ export class ScannerWorkflowOrchestrator {
                   transportPlaceId,
                 })
       if (!result.ok) throw new Error('Операция не выполнена: ' + result.code)
+      const placeNumber = this.placeNumber(transportPlaceId)
+      const quantity =
+        result.value && 'quantity' in result.value ? result.value.quantity : returnedQuantity
+      this.actionHistory.append({
+        description: this.operationDescription(operation),
+        level: 'success',
+        title:
+          operation.kind === 'transfer'
+            ? `Перемещено ${quantity} шт. в ${placeNumber}`
+            : `Возвращено ${quantity} шт. из ${placeNumber}`,
+        type: operation.kind,
+      })
       this.machine.send({ id: operation.id, transportPlaceId, type: 'operation-succeeded' })
     } catch (error) {
+      this.actionHistory.append({
+        level: 'error',
+        title: error instanceof Error ? error.message : 'Не удалось выполнить операцию',
+        type: 'operation-failed',
+      })
       this.machine.send({
         id: operation.id,
         message: error instanceof Error ? error.message : 'Не удалось выполнить операцию',
@@ -302,8 +334,36 @@ export class ScannerWorkflowOrchestrator {
     if (this.isBusy || this.isWaiting || !this.started) return null
     const result = this.dataStore.createTransportPlace()
     if (!result.ok) return null
+    this.recordPlaceCreated(result.value.number)
     this.machine.mouseTransportPlaceSelected(result.value.id)
     return result.value.id
+  }
+
+  canDeleteTransportPlace(transportPlaceId: string | null): boolean {
+    return Boolean(
+      this.started &&
+      !this.isBusy &&
+      !this.isWaiting &&
+      transportPlaceId &&
+      this.dataStore.data?.transportPlaces.some((place) => place.id === transportPlaceId),
+    )
+  }
+
+  deleteTransportPlace(transportPlaceId: string): boolean {
+    if (!this.canDeleteTransportPlace(transportPlaceId)) return false
+    const number = this.placeNumber(transportPlaceId)
+    const quantity = this.dataStore.returnAvailable(transportPlaceId)
+    const result = this.dataStore.deleteTransportPlace(transportPlaceId)
+    if (!result.ok) return false
+
+    this.actionHistory.append({
+      description: `Возвращено товаров: ${quantity} шт.`,
+      level: 'success',
+      title: `Удалено ${number}`,
+      type: 'transport-place-deleted',
+    })
+    this.machine.transportPlaceDeleted(this.dataStore.activeTransportPlaceId)
+    return true
   }
 
   selectContainer(containerId: string): void {
@@ -324,7 +384,10 @@ export class ScannerWorkflowOrchestrator {
 
   barcodeUnknown(): void {
     const issue = this.machine.barcodeUnknown()
-    if (issue) this.alerts.publish(issue)
+    if (issue) {
+      this.actionHistory.append({ level: 'error', title: issue.message, type: issue.code })
+      this.alerts.publish(issue)
+    }
   }
 
   send(event: ResolvedScanEvent): void {
@@ -628,11 +691,49 @@ export class ScannerWorkflowOrchestrator {
     return [...rows.values()].sort((left, right) => left.code.localeCompare(right.code))
   }
 
+  private initializeHistory(): void {
+    const orderId = this.order?.id
+    if (!orderId || this.historyOrderId === orderId) return
+    this.historyOrderId = orderId
+    this.actionHistory.reset()
+    this.actionHistory.append({
+      description: 'Товары ожидают распределения',
+      level: 'success',
+      title: 'Заказ проверен.',
+      type: 'order-loaded',
+    })
+  }
+
+  private recordPlaceCreated(number: string): void {
+    this.actionHistory.append({
+      level: 'success',
+      title: `Создано ${number}`,
+      type: 'transport-place-created',
+    })
+  }
+
+  private placeNumber(id: string): string {
+    return this.dataStore.data?.transportPlaces.find((place) => place.id === id)?.number ?? id
+  }
+
+  private operationDescription(operation: Operation): string {
+    const snapshot = this.dataStore.data
+    const productId = operation.kind === 'return' ? operation.productId : operation.scope.productId
+    const product = snapshot?.products.find((item) => item.id === productId)
+    if (product) return `${product.code} · ${product.name}`
+    if (operation.kind === 'transfer' && operation.scope.kind === 'container') {
+      const containerId = operation.scope.containerId
+      return `Контейнер ${snapshot?.containers.find((item) => item.id === containerId)?.barcode ?? containerId}`
+    }
+    return 'Все товары транспортного места'
+  }
+
   private async load(lifecycleId: number): Promise<void> {
     try {
       const snapshot = await this.loader()
       if (!this.disposed && lifecycleId === this.lifecycleId) {
         this.dataStore.setSnapshot(snapshot)
+        this.initializeHistory()
         this.syncSourceFilter()
         if (!this.machine.activeTransportPlaceId && snapshot.transportPlaces.length > 0) {
           this.machine.mouseTransportPlaceSelected(snapshot.transportPlaces[0].id)

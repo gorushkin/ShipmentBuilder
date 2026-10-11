@@ -4,6 +4,46 @@ import { createDemoData } from './demo-data'
 import { ShipmentDataStore } from './shipment-data-store'
 
 describe('ShipmentDataStore', () => {
+  it('returns deleted place contents without changing other allocations or source identities', () => {
+    const store = new ShipmentDataStore()
+    store.setSnapshot(createDemoData())
+    const first = 'ORD-001-TP-001'
+    const created = store.createTransportPlace()
+    if (!created.ok) throw new Error('Creation failed')
+    const second = created.value.id
+    store.transferSourceLines(['L1'], first)
+    store.transferSourceLines(['L2'], second)
+    const source = JSON.stringify(store.data?.sourceLines)
+    const markings = JSON.stringify(store.data?.markingCodes)
+    expect(store.deleteTransportPlace(second).ok).toBe(true)
+    expect(store.distributedUnits).toBe(10)
+    expect(store.activeTransportPlaceId).toBe(first)
+    expect(store.data?.allocationLines.every((line) => line.transportPlaceId === first)).toBe(true)
+    expect(store.remainingLines.find((line) => line.id === 'L2')?.remainingQuantity).toBe(5)
+    expect(JSON.stringify(store.data?.sourceLines)).toBe(source)
+    expect(JSON.stringify(store.data?.markingCodes)).toBe(markings)
+    const before = JSON.stringify(store.data)
+    expect(store.deleteTransportPlace(second).ok).toBe(false)
+    expect(JSON.stringify(store.data)).toBe(before)
+  })
+
+  it('selects the next place when deleting the first and never reuses deleted numbers', () => {
+    const store = new ShipmentDataStore()
+    store.setSnapshot(createDemoData())
+    const first = 'ORD-001-TP-001'
+    const second = store.createTransportPlace()
+    if (!second.ok) throw new Error('Creation failed')
+    store.selectTransportPlace(first)
+    store.deleteTransportPlace(first)
+    expect(store.activeTransportPlaceId).toBe(second.value.id)
+    store.deleteTransportPlace(second.value.id)
+    expect(store.activeTransportPlaceId).toBeNull()
+    expect(store.data?.transportPlaces).toEqual([])
+    expect(store.createTransportPlace()).toMatchObject({ ok: true, value: { sequence: 3 } })
+    store.setSnapshot(createDemoData())
+    expect(store.createTransportPlace()).toMatchObject({ ok: true, value: { sequence: 2 } })
+  })
+
   it('rejects an invalid batch atomically and keeps source identity on a valid batch', () => {
     const store = new ShipmentDataStore()
     store.setSnapshot(createDemoData())

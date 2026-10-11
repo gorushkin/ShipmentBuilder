@@ -1,24 +1,95 @@
-.guidance {
-  display: grid;
-  grid-template-columns: 16px auto 1fr;
-  justify-content: start;
-  gap: 9px;
-  align-items: center;
-  color: #357458;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+.action-history {
+  position: relative;
+  min-width: 0;
   font-size: 12px;
 }
-.guidance svg {
+.action-history__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+  padding-left: 4px;
+}
+.action-history__latest {
+  flex: 1;
+  min-width: 0;
+}
+.history-event {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: #357458;
+}
+.history-event--error {
+  color: #b42318;
+}
+.history-event--warning {
+  color: #a66a09;
+}
+.history-event--info {
+  color: #245ad5;
+}
+.history-event svg {
+  flex: none;
   width: 16px;
   height: 16px;
 }
-.guidance [data-slot='alert-title'] {
-  grid-column: 2;
+.history-event__message {
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  align-items: baseline;
 }
-.guidance [data-slot='alert-description'] {
-  grid-column: 3;
+.history-event__message strong,
+.history-event__message span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-event__message strong {
+  flex-shrink: 0;
+  max-width: 100%;
+  font-weight: 600;
+}
+.history-event__message span {
   color: #6c798c;
+}
+.action-history__summary button {
+  flex: none;
+  font-size: 11px;
+}
+.action-history__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 242px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #dbe3f1;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #2330471a;
+}
+.action-history__list li {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid #edf0f5;
+}
+.action-history__list li:last-child {
+  border-bottom: 0;
+}
+.action-history__list time {
+  color: #788497;
+  font-variant-numeric: tabular-nums;
 }

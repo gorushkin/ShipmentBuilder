@@ -1,5 +1,6 @@
 import { createDemoData, createLargeDemoData } from '@/domain/shipment/demo-data'
 import { ShipmentDataStore } from '@/domain/shipment/shipment-data-store'
+import { ActionHistoryStore } from '@/features/action-history'
 import { shadcnToastAlertService } from '@/features/application-alerts'
 import { BarcodeInputAdapter, BarcodeResolver, ScanMachine } from '@/features/scan-machine'
 
@@ -21,6 +22,7 @@ export const scannerWorkflowOrchestrator = new ScannerWorkflowOrchestrator(
   shipmentDataStore,
   () => Promise.resolve(shipmentDemoData),
   shadcnToastAlertService,
+  new ActionHistoryStore(),
 )
 export const barcodeInputAdapter = new BarcodeInputAdapter(
   new BarcodeResolver(() => shipmentDataStore.data),

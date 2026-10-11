@@ -70,6 +70,12 @@ export class ScanMachine {
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true })
   }
+  transportPlaceDeleted(nextTransportPlaceId: string | null): void {
+    this.activeTransportPlaceId = nextTransportPlaceId
+    this.selectedDestinationProductId = null
+    this.feedback = { kind: 'info', message: 'Транспортное место удалено' }
+  }
+
   get isTransferring() {
     return this.step.kind === 'transferring'
   }

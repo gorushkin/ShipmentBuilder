@@ -22,6 +22,7 @@ import {
 import { shipmentShortcuts } from '@/pages/shipment/shared/shortcuts'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
+import { DeleteTransportPlaceAction } from './delete-transport-place-action'
 import { DestinationProductTable } from './destination/destination-product-table'
 import { DestinationTransportPlaceTable } from './destination/destination-transport-place-table'
 import { PartialQuantityDialog } from './partial-quantity-dialog'
@@ -218,6 +219,7 @@ export const DestinationPanel = observer(function DestinationPanel() {
           </Badge>
           <DestinationModeSelect mode={mode} onModeChange={setMode} />
           <CreateTransportPlaceAction />
+          <DeleteTransportPlaceAction />
         </div>
       </header>
       <div className="table-scroll destination-scroll">{destinationTable}</div>

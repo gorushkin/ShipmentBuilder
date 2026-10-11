@@ -7,6 +7,12 @@ export const shipmentShortcuts = {
   get createTransportPlace() {
     return commands.createTransportPlace.shortcut
   },
+  get deleteTransportPlace() {
+    return commands.deleteTransportPlace.shortcut
+  },
+  get historyToggle() {
+    return commands.historyToggle.shortcut
+  },
   get mix() {
     return commands.mix.shortcut
   },

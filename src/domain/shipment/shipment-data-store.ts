@@ -76,6 +76,7 @@ export class ShipmentDataStore {
   activeTransportPlaceId: null | string = null
   data: null | ShipmentData = null
   sourceFilter: null | SourceFilter = null
+  private transportPlaceSequence = 0
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true })
@@ -132,6 +133,7 @@ export class ShipmentDataStore {
   }
   setSnapshot(snapshot: ShipmentData): void {
     this.data = copySnapshot(snapshot)
+    this.transportPlaceSequence = Math.max(0, ...snapshot.transportPlaces.map((x) => x.sequence))
     this.activeTransportPlaceId = null
     this.sourceFilter = null
   }
@@ -229,7 +231,7 @@ export class ShipmentDataStore {
   }
   createTransportPlace(): DataResult<TransportPlace> {
     if (!this.data) return this.fail('source-empty')
-    const sequence = Math.max(0, ...this.data.transportPlaces.map((x) => x.sequence)) + 1
+    const sequence = ++this.transportPlaceSequence
     const suffix = String(sequence).padStart(3, '0')
     const place: TransportPlace = {
       barcode: `TM${sequence}`,
@@ -242,6 +244,25 @@ export class ShipmentDataStore {
     this.data.transportPlaces.push(place)
     this.activeTransportPlaceId = place.id
     return this.ok(place)
+  }
+  deleteTransportPlace(transportPlaceId: string): DataResult<void> {
+    const place = this.place(transportPlaceId)
+    if (!this.data || !place) return this.fail('transport-place-not-found')
+
+    const remaining = this.data.transportPlaces
+      .filter((item) => item.id !== transportPlaceId)
+      .sort((left, right) => left.sequence - right.sequence)
+    const previous = remaining.filter((item) => item.sequence < place.sequence).at(-1)
+
+    this.data.allocationLines = this.data.allocationLines.filter(
+      (item) => item.transportPlaceId !== transportPlaceId,
+    )
+    this.data.transportPlaces = remaining
+    if (this.activeTransportPlaceId === transportPlaceId) {
+      this.activeTransportPlaceId = previous?.id ?? remaining[0]?.id ?? null
+    }
+
+    return this.ok(undefined)
   }
   selectTransportPlace(transportPlaceId: string): DataResult<void> {
     if (!this.place(transportPlaceId)) return this.fail('transport-place-not-found')

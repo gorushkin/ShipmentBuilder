@@ -9,6 +9,11 @@ export const defaultCommands = {
     label: 'Отмена',
     shortcut: 'Escape',
   },
+  clearDestinationFilter: {
+    description: 'Сбросить фильтр транспортных мест',
+    label: 'Сбросить',
+    shortcut: 'shift+x',
+  },
   clearFilter: {
     description: 'Сбросить фильтр источника',
     label: 'Сбросить',

@@ -23,7 +23,21 @@ export function connectKeyboard(manager: KeyboardManager, window: Window): () =>
     event.preventDefault()
     event.stopImmediatePropagation()
   }
-  const down = (event: KeyboardEvent) => consume(event, manager.keyDown(event, context(event)))
+  const down = (event: KeyboardEvent) => {
+    const target = event.target
+    if (
+      event.key === ' ' &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      target instanceof Element &&
+      target.matches('tr[tabindex="0"]')
+    ) {
+      return
+    }
+
+    consume(event, manager.keyDown(event, context(event)))
+  }
   const up = (event: KeyboardEvent) => consume(event, manager.keyUp(event, context(event)))
   const focus = (event: FocusEvent) => manager.setContext(context(event))
   const reset = () => manager.reset()

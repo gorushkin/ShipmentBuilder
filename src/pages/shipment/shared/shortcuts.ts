@@ -1,6 +1,9 @@
 import { commands } from '@/features/command-config'
 
 export const shipmentShortcuts = {
+  get clearDestinationFilter() {
+    return commands.clearDestinationFilter.shortcut
+  },
   get clearFilter() {
     return commands.clearFilter.shortcut
   },

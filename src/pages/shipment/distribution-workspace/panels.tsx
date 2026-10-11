@@ -193,8 +193,29 @@ export const SourcePanel = observer(function SourcePanel() {
 })
 
 export const DestinationPanel = observer(function DestinationPanel() {
+  const workflow = scannerWorkflowOrchestrator
+  const places = workflow.getDestinationRows('transport-places')
+  const activePlace = places.find((place) => place.isActive)
   const [mode, setMode] = useState<DestinationTableMode>('transport-places')
+  const [previousActiveId, setPreviousActiveId] = useState(activePlace?.id)
+
+  if (previousActiveId !== activePlace?.id) {
+    setPreviousActiveId(activePlace?.id)
+    if (previousActiveId && !activePlace) setMode('transport-places')
+  }
+
+  const selectPlace = (id: string) => {
+    if (workflow.selectTransportPlace(id)) setMode('transport-place-products')
+  }
+
   const isProductMode = mode === 'transport-place-products'
+  const clearShortcut = shipmentShortcuts.clearDestinationFilter
+  const clearFilter = () => setMode('transport-places')
+
+  useShortcut(clearShortcut, clearFilter, {
+    accepts: () => isProductMode && Boolean(activePlace),
+  })
+
   const rowCount = isProductMode
     ? scannerWorkflowOrchestrator.getDestinationRows('transport-place-products').length
     : scannerWorkflowOrchestrator.getDestinationRows('transport-places').length
@@ -204,6 +225,7 @@ export const DestinationPanel = observer(function DestinationPanel() {
     />
   ) : (
     <DestinationTransportPlaceTable
+      onSelect={selectPlace}
       rows={scannerWorkflowOrchestrator.getDestinationRows('transport-places')}
     />
   )
@@ -221,6 +243,21 @@ export const DestinationPanel = observer(function DestinationPanel() {
           <CreateTransportPlaceAction />
           <DeleteTransportPlaceAction />
         </div>
+        {isProductMode && activePlace && (
+          <div className="source-filter-indicator">
+            <span>ТМ: {activePlace.name}</span>
+            <Button
+              onClick={clearFilter}
+              shortcut={clearShortcut}
+              title={commands.clearDestinationFilter.description}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {commands.clearDestinationFilter.label}
+            </Button>
+          </div>
+        )}
       </header>
       <div className="table-scroll destination-scroll">{destinationTable}</div>
     </section>

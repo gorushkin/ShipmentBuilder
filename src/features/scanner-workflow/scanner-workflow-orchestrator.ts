@@ -374,8 +374,17 @@ export class ScannerWorkflowOrchestrator {
     this.dispatchSelection({ productId, type: 'mouse-product-selected' })
   }
 
-  selectTransportPlace(transportPlaceId: string): void {
+  selectTransportPlace(transportPlaceId: string): boolean {
+    const accepted = Boolean(
+      this.started &&
+      this.hasSnapshot &&
+      !this.isBusy &&
+      this.machine.step.kind !== 'awaiting-quantity' &&
+      this.dataStore.data?.transportPlaces.some((place) => place.id === transportPlaceId),
+    )
+
     this.dispatchSelection({ transportPlaceId, type: 'mouse-transport-place-selected' })
+    return accepted
   }
 
   clearSourceFilter(): void {

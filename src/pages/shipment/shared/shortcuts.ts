@@ -22,6 +22,9 @@ export const shipmentShortcuts = {
   get pal() {
     return commands.pal.shortcut
   },
+  get print1CLabels() {
+    return commands.print1CLabels.shortcut
+  },
   get printLabel() {
     return commands.printLabel.shortcut
   },

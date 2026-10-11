@@ -44,6 +44,11 @@ export const defaultCommands = {
     label: 'PAL',
     shortcut: 'b',
   },
+  print1CLabels: {
+    description: 'Печать маркировок 1С: пока выводит сообщение в консоль',
+    label: 'Печать маркировок 1С',
+    shortcut: 'shift+l',
+  },
   printLabel: {
     description: 'Печать этикетки ТМ: будет доступно в следующих версиях прототипа',
     label: 'Печать этикетки ТМ',

@@ -127,6 +127,27 @@ export function PrintTMLabelButton() {
   )
 }
 
+export function Print1CLabelsButton() {
+  const command = commands.print1CLabels
+  const shortcut = shipmentShortcuts.print1CLabels
+  const print = () => console.info('Печать маркировок 1С')
+
+  useShortcut(shortcut, print)
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={print}
+      shortcut={shortcut}
+      title={command.description}
+    >
+      <Printer aria-hidden="true" />
+      {command.label}
+    </Button>
+  )
+}
+
 export function PrintReportsButton() {
   const [open, setOpen] = useState(false)
   const [selectedReports, setSelectedReports] = useState(['Отчет 1'])
@@ -203,6 +224,7 @@ export function ShipmentHeaderActions() {
       <SendTo1CButton />
       <RepeatShipmentButton />
       <PrintTMLabelButton />
+      <Print1CLabelsButton />
       <PrintReportsButton />
     </div>
   )

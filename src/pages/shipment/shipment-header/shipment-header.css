@@ -12,6 +12,9 @@
   width: max-content;
   max-width: 100%;
 }
+.shipment-page .page-heading h1 {
+  white-space: nowrap;
+}
 .shipment-page .app-icon {
   display: grid;
   place-items: center;

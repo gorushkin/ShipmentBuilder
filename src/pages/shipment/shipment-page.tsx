@@ -5,6 +5,7 @@ import { observer } from 'mobx-react-lite'
 import { Toaster } from '@/components/ui/toast'
 import { getActionPanelStatus } from '@/features/action-panel-status'
 import { BarcodeInput } from '@/features/barcode-input'
+import { connectKeyboard, keyboard } from '@/features/keyboard-input'
 import {
   barcodeInputAdapter,
   scanMachine,
@@ -20,9 +21,15 @@ import './shipment.css'
 
 export const ShipmentPage = observer(function ShipmentPage() {
   useEffect(() => {
+    const disconnect = connectKeyboard(keyboard, window)
+    return disconnect
+  }, [])
+
+  useEffect(() => {
     scannerWorkflowOrchestrator.start()
     return () => scannerWorkflowOrchestrator.dispose()
   }, [])
+
   const actionStatus = getActionPanelStatus({
     activeTransportPlaceId: scanMachine.activeTransportPlaceId,
     feedback: scanMachine.feedback,

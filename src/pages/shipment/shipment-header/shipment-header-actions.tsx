@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { Printer, Send } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Dialog,
   DialogClose,
@@ -14,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useShortcut } from '@/features/keyboard-input'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 type ShipmentHeaderActionButtonProps = {
@@ -86,6 +87,8 @@ export function PrintTMLabelButton() {
 export function PrintReportsButton() {
   const [open, setOpen] = useState(false)
   const [selectedReport, setSelectedReport] = useState('Отчет 1')
+
+  useShortcut('p', () => setOpen(true))
 
   const reports = ['Отчет 1', 'Отчет 2', 'Отчет 3']
 

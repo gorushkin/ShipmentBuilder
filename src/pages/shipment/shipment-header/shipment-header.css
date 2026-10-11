@@ -27,14 +27,14 @@
 }
 .shipment-page .order-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 .shipment-page .order-actions > * {
   flex: 0 0 auto;

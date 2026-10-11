@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 
-import { keyboard, useShortcut } from '@/features/keyboard-input'
+import { barcodeShortcuts, keyboard, useShortcut } from '@/features/keyboard-input'
 import type { KeyboardContext } from '@/features/keyboard-input'
 
 import { BarcodeInputController } from './barcode-input-controller'
@@ -11,13 +11,13 @@ export function useBarcodeInput(onCompleted: (value: string) => void, onCancel?:
   const manualInputOrPage = (context: KeyboardContext) =>
     !context.editing || context.targetId === 'barcode-input'
 
-  useShortcut('F2', () => controller.toggle(), {
+  useShortcut(barcodeShortcuts.toggle, () => controller.toggle(), {
     accepts: manualInputOrPage,
     whenEditing: 'allow',
   })
 
   useShortcut(
-    'Escape',
+    barcodeShortcuts.cancel,
     () => {
       if (controller.isExpanded && document.activeElement?.id === 'barcode-input') {
         controller.collapse()

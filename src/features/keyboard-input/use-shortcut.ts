@@ -11,7 +11,7 @@ export function useShortcut(
   handler: ShortcutRegistration['handler'],
   options: ShortcutOptions = {},
 ): void {
-  const normalized = normalizeShortcut(shortcut)
+  const normalized = shortcut ? normalizeShortcut(shortcut) : null
   const whenEditing = options.whenEditing ?? 'ignore'
   const run = useEffectEvent(handler)
   const accepts = useEffectEvent<NonNullable<ShortcutOptions['accepts']>>(
@@ -20,12 +20,14 @@ export function useShortcut(
 
   useEffect(
     () =>
-      keyboard.register({
-        accepts: (context) => accepts(context),
-        handler: () => run(),
-        shortcut: normalized,
-        whenEditing,
-      }),
+      normalized
+        ? keyboard.register({
+            accepts: (context) => accepts(context),
+            handler: () => run(),
+            shortcut: normalized,
+            whenEditing,
+          })
+        : undefined,
     [normalized, whenEditing],
   )
 }

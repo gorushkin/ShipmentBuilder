@@ -7,6 +7,8 @@ import { observer } from 'mobx-react-lite'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ActionPanelStatus } from '@/features/action-panel-status'
+import { commands } from '@/features/command-config'
+import { barcodeShortcuts } from '@/features/keyboard-input'
 
 import './barcode-input.css'
 import { useBarcodeInput } from './use-barcode-input'
@@ -69,6 +71,8 @@ export const BarcodeInput = observer(function BarcodeInput({
         </form>
       )}
       <Button
+        shortcut={barcodeShortcuts.toggle}
+        title={commands.barcodeToggle.description}
         aria-controls={isExpanded ? 'barcode-input' : undefined}
         aria-expanded={isExpanded}
         onClick={() => controller.toggle()}
@@ -76,9 +80,8 @@ export const BarcodeInput = observer(function BarcodeInput({
         type="button"
         variant="outline"
       >
-        <ScanBarcode />
-        {isExpanded ? 'Свернуть ввод' : 'Развернуть ввод'}
-        <kbd>F2</kbd>
+        <ScanBarcode aria-hidden="true" />
+        {commands.barcodeToggle.label}
       </Button>
     </section>
   )

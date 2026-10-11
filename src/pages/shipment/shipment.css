@@ -55,14 +55,14 @@
 }
 .shipment-page .order-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 .shipment-page .disabled-control {
   display: inline-grid;
@@ -282,7 +282,7 @@
 }
 .shipment-page .transfer-button {
   display: grid;
-  grid-template-columns: 18px 1fr;
+  grid-template-columns: 14px minmax(0, 1fr) max-content;
   height: auto;
   min-height: 50px;
   white-space: normal;
@@ -291,6 +291,9 @@
   padding: 10px;
   gap: 8px;
   line-height: 1.5;
+}
+.shipment-page .transfer-button > [data-slot='kbd'] {
+  grid-column: 3;
 }
 .shipment-page .future-action {
   width: 100%;

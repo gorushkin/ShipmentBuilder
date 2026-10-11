@@ -1,9 +1,13 @@
+import { useId } from 'react'
+
 import { Button as ButtonPrimitive } from '@base-ui/react/button'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from 'cn'
 
+import { formatShortcut } from '@/features/keyboard-input'
+
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all cursor-pointer outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed aria-disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     defaultVariants: {
       size: 'default',
@@ -40,17 +44,80 @@ const buttonVariants = cva(
 )
 
 function Button({
+  children,
   className,
+  id,
+  shortcut,
   size = 'default',
+  title,
   variant = 'default',
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    shortcut?: string
+  }) {
+  const generatedId = useId()
+  const buttonId = id ?? generatedId
+  const descriptionId = `${generatedId}-description`
+  const formatted = shortcut ? formatShortcut(shortcut) : null
+  const disabled = Boolean(
+    props.disabled || props['aria-disabled'] === true || props['aria-disabled'] === 'true',
+  )
+  const description =
+    title ?? props['aria-label'] ?? (typeof children === 'string' ? children : undefined)
+  const nativeTitle =
+    [description, formatted && `(${formatted.label})`].filter(Boolean).join(' ') || undefined
+  const hasDescription = Boolean(formatted || title)
+  const iconOnly = size?.startsWith('icon')
+  const keycap = formatted && (
+    <kbd
+      aria-hidden="true"
+      data-slot="kbd"
+      className="shrink-0 rounded border border-current/20 bg-current/5 px-1 py-0.5 font-sans text-[10px] leading-none font-medium whitespace-nowrap"
+    >
+      {formatted.label}
+    </kbd>
+  )
+  const button = (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ className, size, variant }))}
       {...props}
-    />
+      id={buttonId}
+      title={disabled && hasDescription ? undefined : nativeTitle}
+      aria-describedby={
+        [props['aria-describedby'], hasDescription && descriptionId].filter(Boolean).join(' ') ||
+        undefined
+      }
+      aria-keyshortcuts={disabled ? undefined : (formatted?.aria ?? props['aria-keyshortcuts'])}
+    >
+      {children}
+      {!iconOnly && keycap}
+    </ButtonPrimitive>
+  )
+  if (!hasDescription) return button
+
+  return (
+    <>
+      <span id={descriptionId} className="sr-only">
+        {description}
+        {formatted && <>. Сочетание клавиш: {formatted.label}</>}
+      </span>
+      {disabled ? (
+        <span
+          className="disabled-control inline-grid cursor-not-allowed rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>button]:pointer-events-none"
+          role="group"
+          tabIndex={0}
+          aria-labelledby={buttonId}
+          aria-describedby={descriptionId}
+          title={nativeTitle}
+        >
+          {button}
+        </span>
+      ) : (
+        button
+      )}
+    </>
   )
 }
 

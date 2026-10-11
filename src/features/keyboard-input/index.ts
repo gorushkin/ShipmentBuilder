@@ -1,4 +1,6 @@
 export { connectKeyboard, keyboardContext } from './keyboard-dom'
+export { formatShortcut } from './format-shortcut'
+export { barcodeShortcuts } from './shortcuts'
 export { useKeyboardSuspension } from './use-keyboard-suspension'
 export { keyboard } from './runtime'
 export { KeyboardManager, normalizeShortcut } from './keyboard-manager'

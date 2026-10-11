@@ -12,11 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { commands } from '@/features/command-config'
+import { barcodeShortcuts, useShortcut } from '@/features/keyboard-input'
 import {
   scannerWorkflowOrchestrator,
   type DestinationTableMode,
   type SourceTableMode,
 } from '@/features/scanner-workflow'
+import { shipmentShortcuts } from '@/pages/shipment/shared/shortcuts'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 import { DestinationProductTable } from './destination/destination-product-table'
@@ -81,20 +84,48 @@ function DestinationModeSelect({
 }
 
 const CreateTransportPlaceAction = observer(function CreateTransportPlaceAction() {
+  const workflow = scannerWorkflowOrchestrator
+  const shortcut = shipmentShortcuts.createTransportPlace
+  const canCreate = () => workflow.hasSnapshot && !workflow.isBusy && !workflow.isWaiting
+  const create = () => {
+    if (canCreate()) workflow.createTransportPlace()
+  }
+
+  useShortcut(shortcut, create, { accepts: canCreate })
+
   return (
     <Button
-      disabled={
-        !scannerWorkflowOrchestrator.hasSnapshot ||
-        scannerWorkflowOrchestrator.isBusy ||
-        scannerWorkflowOrchestrator.isWaiting
-      }
+      disabled={!canCreate()}
+      shortcut={shortcut}
+      title={commands.createTransportPlace.description}
       size="sm"
-      onClick={() => {
-        scannerWorkflowOrchestrator.createTransportPlace()
-      }}
+      onClick={create}
     >
-      <Plus />
-      Создать ТМ
+      <Plus aria-hidden="true" />
+      {commands.createTransportPlace.label}
+    </Button>
+  )
+})
+
+const ClearSourceFilterAction = observer(function ClearSourceFilterAction() {
+  const workflow = scannerWorkflowOrchestrator
+  const shortcut = shipmentShortcuts.clearFilter
+  const clear = () => {
+    if (workflow.sourceFilter) workflow.clearSourceFilter()
+  }
+
+  useShortcut(shortcut, clear, { accepts: () => Boolean(workflow.sourceFilter) })
+
+  return (
+    <Button
+      onClick={clear}
+      shortcut={shortcut}
+      title={commands.clearFilter.description}
+      size="sm"
+      type="button"
+      variant="ghost"
+    >
+      {commands.clearFilter.label}
     </Button>
   )
 })
@@ -153,14 +184,7 @@ export const SourcePanel = observer(function SourcePanel() {
               {sourceFilter.type === 'container' ? 'Контейнер' : 'Товар'}:{' '}
               {scannerWorkflowOrchestrator.sourceFilterLabel}
             </span>
-            <Button
-              onClick={() => scannerWorkflowOrchestrator.clearSourceFilter()}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Сбросить
-            </Button>
+            <ClearSourceFilterAction />
           </div>
         )}
       </header>
@@ -205,6 +229,46 @@ export const DestinationPanel = observer(function DestinationPanel() {
   )
 })
 
+type TransferCommand = Parameters<typeof scannerWorkflowOrchestrator.canCommand>[0]
+
+const TransferAction = observer(function TransferAction({
+  command,
+  label,
+  shortcut,
+  title,
+}: {
+  command: TransferCommand
+  label: string
+  shortcut: string
+  title: string
+}) {
+  const workflow = scannerWorkflowOrchestrator
+  const available = () => workflow.canCommand(command)
+  const run = () => {
+    if (available()) workflow.command(command)
+  }
+
+  useShortcut(shortcut, run, { accepts: available })
+
+  return (
+    <Button
+      variant="outline"
+      className="transfer-button"
+      disabled={!available()}
+      onClick={run}
+      shortcut={shortcut}
+      title={title}
+    >
+      {command.includes('return') ? (
+        <ArrowLeft aria-hidden="true" />
+      ) : (
+        <ArrowRight aria-hidden="true" />
+      )}
+      <span>{label}</span>
+    </Button>
+  )
+})
+
 export const TransferActions = observer(function TransferActions() {
   const workflow = scannerWorkflowOrchestrator
   const step = workflow.step
@@ -216,46 +280,88 @@ export const TransferActions = observer(function TransferActions() {
       : null
 
   const transferActions = [
-    [workflow.selectedTransferCommand, 'Переместить строку'],
-    ['transfer-filtered', 'Переместить всё по фильтру'],
-    ['request-transfer-quantity', 'Переместить количество'],
+    [
+      workflow.selectedTransferCommand,
+      commands.transferRow.label,
+      shipmentShortcuts.transferRow,
+      commands.transferRow.description,
+    ],
+    [
+      'transfer-filtered',
+      commands.transferAll.label,
+      shipmentShortcuts.transferAll,
+      commands.transferAll.description,
+    ],
+    [
+      'request-transfer-quantity',
+      commands.transferQuantity.label,
+      shipmentShortcuts.transferQuantity,
+      commands.transferQuantity.description,
+    ],
   ] as const
 
   const returnActions = [
-    ['return-product', 'Вернуть строку'],
-    ['request-return-quantity', 'Вернуть количество'],
-    ['return-transport-place', 'Вернуть всё из ТМ'],
+    [
+      'return-product',
+      commands.returnRow.label,
+      shipmentShortcuts.returnRow,
+      commands.returnRow.description,
+    ],
+    [
+      'request-return-quantity',
+      commands.returnQuantity.label,
+      shipmentShortcuts.returnQuantity,
+      commands.returnQuantity.description,
+    ],
+    [
+      'return-transport-place',
+      commands.returnAll.label,
+      shipmentShortcuts.returnAll,
+      commands.returnAll.description,
+    ],
   ] as const
 
-  const renderAction = ([command, label]:
+  const renderAction = ([command, label, shortcut, title]:
     (typeof transferActions)[number] | (typeof returnActions)[number]) => (
-    <Button
+    <TransferAction
       key={command}
-      variant="outline"
-      className="transfer-button"
-      disabled={!workflow.canCommand(command)}
-      onClick={() => workflow.command(command)}
-    >
-      {command.includes('return') ? <ArrowLeft /> : <ArrowRight />}
-      <span>{label}</span>
-    </Button>
+      command={command}
+      label={label}
+      shortcut={shortcut}
+      title={title}
+    />
   )
 
   return (
     <aside className="transfer-actions" aria-label="Распределение товаров">
       <div className="transfer-actions-list">
         {transferActions.map(renderAction)}
-        <UnavailableButton className="future-action" variant="outline">
-          PAL
+        <UnavailableButton
+          className="future-action"
+          variant="outline"
+          shortcut={shipmentShortcuts.pal}
+          title={commands.pal.description}
+        >
+          {commands.pal.label}
         </UnavailableButton>
-        <UnavailableButton className="future-action" variant="outline">
-          MIX
+        <UnavailableButton
+          className="future-action"
+          variant="outline"
+          shortcut={shipmentShortcuts.mix}
+          title={commands.mix.description}
+        >
+          {commands.mix.label}
         </UnavailableButton>
         {returnActions.map(renderAction)}
       </div>
       {workflow.isWaiting && (
-        <Button variant="outline" onClick={() => workflow.command('cancel')}>
-          Отмена
+        <Button
+          variant="outline"
+          shortcut={barcodeShortcuts.cancel}
+          title={commands.cancel.description}
+          onClick={() => workflow.command('cancel')}
+        >
+          {commands.cancel.label}
         </Button>
       )}
       {step.kind === 'awaiting-quantity' && (

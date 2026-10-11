@@ -14,18 +14,34 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { commands } from '@/features/command-config'
 import { useShortcut } from '@/features/keyboard-input'
+import { shipmentShortcuts } from '@/pages/shipment/shared/shortcuts'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 type ShipmentHeaderActionButtonProps = {
   icon: ReactNode
   label: string
   onClick?: () => void
+  shortcut: string
+  title: string
 }
 
-function ShipmentHeaderActionButton({ icon, label, onClick }: ShipmentHeaderActionButtonProps) {
+function ShipmentHeaderActionButton({
+  icon,
+  label,
+  onClick,
+  shortcut,
+  title,
+}: ShipmentHeaderActionButtonProps) {
   return (
-    <UnavailableButton variant="outline" size="sm" onClick={onClick}>
+    <UnavailableButton
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      shortcut={shortcut}
+      title={title}
+    >
       {icon}
       {label}
     </UnavailableButton>
@@ -38,7 +54,13 @@ export function SendTo1CButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Отправка ТМ в 1С" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.sendTo1C.label}
+      shortcut={shipmentShortcuts.sendTo1C}
+      title={commands.sendTo1C.description}
+      icon={<Send aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -47,7 +69,15 @@ export function ReceiveSSCCButton() {
     console.info('Получить SSCC')
   }
 
-  return <ShipmentHeaderActionButton label="Получить SSCC" icon={<Send />} onClick={handleClick} />
+  return (
+    <ShipmentHeaderActionButton
+      label={commands.receiveSSCC.label}
+      shortcut={shipmentShortcuts.receiveSSCC}
+      title={commands.receiveSSCC.description}
+      icon={<Send aria-hidden="true" />}
+      onClick={handleClick}
+    />
+  )
 }
 
 export function ReceiveLabelsButton() {
@@ -56,7 +86,13 @@ export function ReceiveLabelsButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Получить маркировки" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.receiveLabels.label}
+      shortcut={shipmentShortcuts.receiveLabels}
+      title={commands.receiveLabels.description}
+      icon={<Send aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -66,7 +102,13 @@ export function RepeatShipmentButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Повторная отправка" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.repeatShipment.label}
+      shortcut={shipmentShortcuts.repeatShipment}
+      title={commands.repeatShipment.description}
+      icon={<Send aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -77,8 +119,10 @@ export function PrintTMLabelButton() {
 
   return (
     <ShipmentHeaderActionButton
-      label="Печать этикетки ТМ"
-      icon={<Printer />}
+      label={commands.printLabel.label}
+      shortcut={shipmentShortcuts.printLabel}
+      title={commands.printLabel.description}
+      icon={<Printer aria-hidden="true" />}
       onClick={handleClick}
     />
   )
@@ -88,7 +132,11 @@ export function PrintReportsButton() {
   const [open, setOpen] = useState(false)
   const [selectedReport, setSelectedReport] = useState('Отчет 1')
 
-  useShortcut('p', () => setOpen(true))
+  const shortcut = shipmentShortcuts.printReports
+  const openReports = () => {
+    if (!open) setOpen(true)
+  }
+  useShortcut(shortcut, openReports, { accepts: () => !open })
 
   const reports = ['Отчет 1', 'Отчет 2', 'Отчет 3']
 
@@ -99,9 +147,15 @@ export function PrintReportsButton() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Printer />
-        Печать
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={openReports}
+        shortcut={shortcut}
+        title={commands.printReports.description}
+      >
+        <Printer aria-hidden="true" />
+        {commands.printReports.label}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -47,10 +47,7 @@ export function PartialQuantityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        initialFocus={() => document.getElementById('partial-quantity')}
-        finalFocus={() => document.getElementById('barcode-input')}
-      >
+      <DialogContent initialFocus={() => document.getElementById('partial-quantity')}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>

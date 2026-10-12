@@ -1,15 +1,24 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 
+import { cn } from 'cn'
 import { ScanBarcode } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ActionPanelStatus } from '@/features/action-panel-status'
+import { commands } from '@/features/command-config'
+import { barcodeShortcuts } from '@/features/keyboard-input'
 
-import './barcode-input.css'
-import { BarcodeInputController } from './barcode-input-controller'
+import { useBarcodeInput } from './use-barcode-input'
+
+const statusClassNames: Record<ActionPanelStatus['tone'], string> = {
+  error: 'text-error',
+  info: 'text-primary',
+  processing: 'text-muted-foreground',
+  success: 'text-success',
+}
 
 interface BarcodeInputProps {
   actionStatus: ActionPanelStatus
@@ -18,132 +27,74 @@ interface BarcodeInputProps {
   onCompleted: (value: string) => void
 }
 
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
-  )
-}
-
-function hasOpenDialog(): boolean {
-  return Boolean(document.querySelector('[data-slot="dialog-content"]'))
-}
-
 export const BarcodeInput = observer(function BarcodeInput({
   actionStatus,
   isProcessing,
   onCancel,
   onCompleted,
 }: BarcodeInputProps) {
-  const [controller] = useState(() => new BarcodeInputController())
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [value, setValue] = useState('')
+  const controller = useBarcodeInput(onCompleted, onCancel)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const isExpanded = controller.isExpanded
 
-  const focusInput = useCallback(
-    () =>
-      window.requestAnimationFrame(() => {
-        if (!hasOpenDialog()) controller.focus()
-      }),
-    [controller],
-  )
-
-  useEffect(() => {
-    focusInput()
-  }, [focusInput, isProcessing])
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (
-        event.key === 'F2' &&
-        !hasOpenDialog() &&
-        (!isTextEntryTarget(event.target) || controller.isFocused())
-      ) {
-        event.preventDefault()
-        setIsExpanded(true)
-        focusInput()
-        return
-      }
-
-      if (event.key === 'Escape' && isExpanded && controller.isFocused()) {
-        event.preventDefault()
-        setIsExpanded(false)
-        focusInput()
-        return
-      }
-
-      if (event.key === 'Escape' && !hasOpenDialog()) onCancel?.()
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [controller, focusInput, isExpanded, onCancel])
-
-  useEffect(() => {
-    function handleDocumentClick(event: MouseEvent) {
-      if (isTextEntryTarget(event.target)) return
-
-      window.setTimeout(() => {
-        if (hasOpenDialog() || isTextEntryTarget(document.activeElement)) return
-        controller.focus()
-      }, 0)
-    }
-
-    document.addEventListener('click', handleDocumentClick)
-    return () => document.removeEventListener('click', handleDocumentClick)
-  }, [controller])
+  useLayoutEffect(() => {
+    if (isExpanded) inputRef.current?.focus({ preventScroll: true })
+  }, [isExpanded])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const barcode = value.trim()
-    setValue('')
+    const barcode = controller.takeValue()
 
     if (barcode) {
       onCompleted(barcode)
     }
-
-    focusInput()
   }
 
   return (
-    <section className="barcode-input" aria-label="Панель действий и сканирование штрихкода">
+    <section
+      className="group/barcode flex min-h-[42px] items-center gap-3 rounded-lg border border-summary-border bg-card px-2.5 py-1.5"
+      aria-label="Панель действий и сканирование штрихкода"
+    >
       <div
-        className={`barcode-input__status barcode-input__status--${actionStatus.tone}`}
+        className={cn(
+          'flex min-w-[220px] flex-[1_1_360px] items-center gap-[7px] text-[15px] leading-[1.35] font-semibold group-has-[input:disabled]/barcode:text-muted-foreground',
+          statusClassNames[actionStatus.tone],
+        )}
         role="status"
       >
-        <ScanBarcode aria-hidden="true" />
-        <span>{actionStatus.message}</span>
+        <ScanBarcode className="size-3.5" aria-hidden="true" />
+        <span className="min-w-0">{actionStatus.message}</span>
       </div>
-      <form className="barcode-input__form" onSubmit={handleSubmit}>
-        <label className="sr-only" htmlFor="barcode-input">
-          Штрихкод
-        </label>
-        <Input
-          aria-label="Штрихкод"
-          className={
-            isExpanded
-              ? 'barcode-input__field'
-              : 'barcode-input__field barcode-input__field--hidden'
-          }
-          id="barcode-input"
-          disabled={isProcessing}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder="Сканируйте или введите штрихкод"
-          ref={(input) => controller.connect(input)}
-          value={value}
-        />
-      </form>
+      {isExpanded && (
+        // TODO: move this form to a separate component for better readability and maintainability
+        <form className="min-w-[180px] flex-[0_1_420px]" onSubmit={handleSubmit}>
+          <label className="sr-only" htmlFor="barcode-input">
+            Штрихкод
+          </label>
+          <Input
+            aria-label="Штрихкод"
+            id="barcode-input"
+            disabled={isProcessing}
+            onChange={(event) => controller.setValue(event.target.value)}
+            placeholder="Сканируйте или введите штрихкод"
+            ref={inputRef}
+            value={controller.value}
+          />
+        </form>
+      )}
       <Button
-        onClick={() => {
-          setIsExpanded(true)
-          focusInput()
-        }}
+        className="text-[11px] leading-[1.428571] [&_kbd]:rounded-[3px] [&_kbd]:border-summary-border [&_kbd]:px-1 [&_kbd]:py-px [&_kbd]:font-[650] [&_kbd]:text-muted-foreground"
+        shortcut={barcodeShortcuts.toggle}
+        title={commands.barcodeToggle.description}
+        aria-controls={isExpanded ? 'barcode-input' : undefined}
+        aria-expanded={isExpanded}
+        onClick={() => controller.toggle()}
         size="sm"
         type="button"
         variant="outline"
       >
-        <ScanBarcode />
-        Развернуть ввод
-        <kbd>F2</kbd>
+        <ScanBarcode className="size-3.5" aria-hidden="true" />
+        {commands.barcodeToggle.label}
       </Button>
     </section>
   )

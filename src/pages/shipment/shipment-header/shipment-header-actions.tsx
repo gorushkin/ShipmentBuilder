@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { Printer, Send } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Dialog,
   DialogClose,
@@ -14,17 +13,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { commands } from '@/features/command-config'
+import { useShortcut } from '@/features/keyboard-input'
+import { shipmentShortcuts } from '@/pages/shipment/shared/shortcuts'
 import { UnavailableButton } from '@/pages/shipment/shared/unavailable-control'
 
 type ShipmentHeaderActionButtonProps = {
   icon: ReactNode
   label: string
   onClick?: () => void
+  shortcut: string
+  title: string
 }
 
-function ShipmentHeaderActionButton({ icon, label, onClick }: ShipmentHeaderActionButtonProps) {
+function ShipmentHeaderActionButton({
+  icon,
+  label,
+  onClick,
+  shortcut,
+  title,
+}: ShipmentHeaderActionButtonProps) {
   return (
-    <UnavailableButton variant="outline" size="sm" onClick={onClick}>
+    <UnavailableButton
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      shortcut={shortcut}
+      title={title}
+    >
       {icon}
       {label}
     </UnavailableButton>
@@ -37,7 +53,13 @@ export function SendTo1CButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Отправка ТМ в 1С" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.sendTo1C.label}
+      shortcut={shipmentShortcuts.sendTo1C}
+      title={commands.sendTo1C.description}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -46,7 +68,15 @@ export function ReceiveSSCCButton() {
     console.info('Получить SSCC')
   }
 
-  return <ShipmentHeaderActionButton label="Получить SSCC" icon={<Send />} onClick={handleClick} />
+  return (
+    <ShipmentHeaderActionButton
+      label={commands.receiveSSCC.label}
+      shortcut={shipmentShortcuts.receiveSSCC}
+      title={commands.receiveSSCC.description}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
+      onClick={handleClick}
+    />
+  )
 }
 
 export function ReceiveLabelsButton() {
@@ -55,7 +85,13 @@ export function ReceiveLabelsButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Получить маркировки" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.receiveLabels.label}
+      shortcut={shipmentShortcuts.receiveLabels}
+      title={commands.receiveLabels.description}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -65,7 +101,13 @@ export function RepeatShipmentButton() {
   }
 
   return (
-    <ShipmentHeaderActionButton label="Повторная отправка" icon={<Send />} onClick={handleClick} />
+    <ShipmentHeaderActionButton
+      label={commands.repeatShipment.label}
+      shortcut={shipmentShortcuts.repeatShipment}
+      title={commands.repeatShipment.description}
+      icon={<Send className="size-[13px]" aria-hidden="true" />}
+      onClick={handleClick}
+    />
   )
 }
 
@@ -76,55 +118,99 @@ export function PrintTMLabelButton() {
 
   return (
     <ShipmentHeaderActionButton
-      label="Печать этикетки ТМ"
-      icon={<Printer />}
+      label={commands.printLabel.label}
+      shortcut={shipmentShortcuts.printLabel}
+      title={commands.printLabel.description}
+      icon={<Printer className="size-[13px]" aria-hidden="true" />}
       onClick={handleClick}
     />
   )
 }
 
+export function Print1CLabelsButton() {
+  const command = commands.print1CLabels
+  const shortcut = shipmentShortcuts.print1CLabels
+  const print = () => console.info('Печать маркировок 1С')
+
+  useShortcut(shortcut, print)
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={print}
+      shortcut={shortcut}
+      title={command.description}
+    >
+      <Printer className="size-[13px]" aria-hidden="true" />
+      {command.label}
+    </Button>
+  )
+}
+
 export function PrintReportsButton() {
   const [open, setOpen] = useState(false)
-  const [selectedReport, setSelectedReport] = useState('Отчет 1')
+  const [selectedReports, setSelectedReports] = useState(['Отчет 1'])
+
+  const shortcut = shipmentShortcuts.printReports
+  const openReports = () => {
+    if (!open) setOpen(true)
+  }
+  useShortcut(shortcut, openReports, { accepts: () => !open })
 
   const reports = ['Отчет 1', 'Отчет 2', 'Отчет 3']
 
   const handlePrint = () => {
-    console.info('Печать отчета', selectedReport)
+    console.info('Печать отчетов', selectedReports)
     setOpen(false)
   }
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Printer />
-        Печать
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={openReports}
+        shortcut={shortcut}
+        title={commands.printReports.description}
+      >
+        <Printer className="size-[13px]" aria-hidden="true" />
+        {commands.printReports.label}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Печать</DialogTitle>
-            <DialogDescription>Выберите отчет для печати.</DialogDescription>
+            <DialogDescription>Выберите отчеты для печати.</DialogDescription>
           </DialogHeader>
 
-          <RadioGroup
-            aria-label="Выбор отчета"
-            className="grid gap-3 py-2"
-            onValueChange={setSelectedReport}
-            value={selectedReport}
-          >
+          <fieldset className="grid gap-3 py-2">
+            <legend className="sr-only">Выбор отчетов</legend>
             {reports.map((report) => (
               <label key={report} className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value={report} />
+                <input
+                  type="checkbox"
+                  checked={selectedReports.includes(report)}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setSelectedReports((selected) =>
+                      checked
+                        ? [...selected, report]
+                        : selected.filter((value) => value !== report),
+                    )
+                  }}
+                />
                 <span>{report}</span>
               </label>
             ))}
-          </RadioGroup>
+          </fieldset>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Отмена</DialogClose>
-            <Button onClick={handlePrint}>Печать</Button>
+            <Button disabled={selectedReports.length === 0} onClick={handlePrint}>
+              Печать
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -134,12 +220,14 @@ export function PrintReportsButton() {
 
 export function ShipmentHeaderActions() {
   return (
-    <div className="order-actions" aria-label="Обмен и печать">
+    <div
+      className="flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 overflow-x-visible [&>*]:flex-none [&_button]:text-[11px] [&_button]:whitespace-nowrap [@media(max-width:1300px)]:[&_button]:px-[7px]"
+      aria-label="Обмен и печать"
+    >
       <SendTo1CButton />
-      <ReceiveSSCCButton />
-      <ReceiveLabelsButton />
       <RepeatShipmentButton />
       <PrintTMLabelButton />
+      <Print1CLabelsButton />
       <PrintReportsButton />
     </div>
   )

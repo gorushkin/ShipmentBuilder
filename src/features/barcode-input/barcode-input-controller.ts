@@ -1,15 +1,28 @@
+import { makeAutoObservable } from 'mobx'
+
 export class BarcodeInputController {
-  private input: HTMLInputElement | null = null
+  isExpanded = false
+  value = ''
 
-  connect(input: HTMLInputElement | null): void {
-    this.input = input
+  constructor() {
+    makeAutoObservable(this)
   }
 
-  focus(): void {
-    this.input?.focus({ preventScroll: true })
+  toggle(): void {
+    this.isExpanded = !this.isExpanded
   }
 
-  isFocused(): boolean {
-    return document.activeElement === this.input
+  collapse(): void {
+    this.isExpanded = false
+  }
+
+  setValue(value: string): void {
+    this.value = value
+  }
+
+  takeValue(): string {
+    const value = this.value.trim()
+    this.value = ''
+    return value
   }
 }

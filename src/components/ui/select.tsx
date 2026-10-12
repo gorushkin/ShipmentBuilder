@@ -4,7 +4,25 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { cn } from 'cn'
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from 'lucide-react'
 
-const Select = SelectPrimitive.Root
+import { useKeyboardSuspension } from '@/features/keyboard-input'
+
+function Select<Value, Multiple extends boolean | undefined = false>({
+  onOpenChange,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
+  const suspend = useKeyboardSuspension(props.open ?? (props.defaultOpen ? true : undefined))
+
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      onOpenChange={(open, details) => {
+        suspend(open)
+        onOpenChange?.(open, details)
+        if (details.isCanceled) suspend(!open)
+      }}
+    />
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (

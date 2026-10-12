@@ -7,9 +7,22 @@ import { cn } from 'cn'
 import { XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { useKeyboardSuspension } from '@/features/keyboard-input'
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Dialog({ onOpenChange, ...props }: DialogPrimitive.Root.Props) {
+  const suspend = useKeyboardSuspension(props.open ?? (props.defaultOpen ? true : undefined))
+
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      {...props}
+      onOpenChange={(open, details) => {
+        suspend(open)
+        onOpenChange?.(open, details)
+        if (details.isCanceled) suspend(!open)
+      }}
+    />
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {

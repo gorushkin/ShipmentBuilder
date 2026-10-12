@@ -24,7 +24,7 @@
 
 ### Requirement: Local transport place creation
 
-`ShipmentDataStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального существующего sequence и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
+`ShipmentDataStore` SHALL создавать ровно одно пустое транспортное место при каждом вызове команды ручного создания. Новое место SHALL принадлежать текущему заказу, иметь уникальный локальный ID, sequence на единицу больше максимального sequence, использованного в текущем snapshot (включая удалённые места) и номер вида `ТМ-NNN`. Команда SHALL NOT создавать строки распределения.
 
 #### Scenario: Create the first transport place
 
@@ -43,9 +43,14 @@
 - **WHEN** существующие места имеют sequence 1 и 3
 - **THEN** следующее созданное место получает sequence 4 и номер `ТМ-004`
 
+#### Scenario: Deleted numbers are not reused
+
+- **WHEN** последнее ТМ удалено и пользователь создаёт новое
+- **THEN** новое ТМ получает sequence больше всех ранее использованных в текущем snapshot, а оставшиеся места не перенумеровываются
+
 ### Requirement: Active transport place
 
-`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter и режимы таблиц, очищать выбор товара назначения и SHALL NOT менять allocations.
+`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter; скан SHALL открывать товары выбранного ТМ справа, остальные способы сохраняют существующие правила режимов, очищать выбор товара назначения и SHALL NOT менять allocations.
 
 #### Scenario: Created place becomes active
 

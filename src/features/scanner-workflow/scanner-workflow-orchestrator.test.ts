@@ -9,6 +9,32 @@ import { BarcodeInputAdapter, BarcodeResolver } from '@/features/scan-machine'
 import { ScannerWorkflowOrchestrator } from './scanner-workflow-orchestrator'
 
 describe('ScannerWorkflowOrchestrator', () => {
+  it('deletes the last active place, clears destination selection and can create again', async () => {
+    const dataStore = new ShipmentDataStore()
+    const machine = new ScanMachine()
+    const orchestrator = new ScannerWorkflowOrchestrator(machine, dataStore, () =>
+      Promise.resolve(createDemoData()),
+    )
+    orchestrator.start()
+    await Promise.resolve()
+    const id = dataStore.activeTransportPlaceId!
+    dataStore.transferSourceLines(['L1'], id)
+    orchestrator.selectDestinationProduct('P1')
+    expect(orchestrator.deleteTransportPlace(id)).toBe(true)
+    expect(machine.activeTransportPlaceId).toBeNull()
+    expect(machine.selectedDestinationProductId).toBeNull()
+    expect(dataStore.distributedUnits).toBe(0)
+    expect(orchestrator.deleteTransportPlace(id)).toBe(false)
+    expect(orchestrator.createTransportPlace()).toBe('ORD-001-TP-002')
+    orchestrator.selectContainer('C1')
+    orchestrator.selectProduct('P1')
+    orchestrator.command('request-transfer-quantity')
+    expect(orchestrator.isWaiting).toBe(true)
+    expect(orchestrator.deleteTransportPlace('ORD-001-TP-002')).toBe(false)
+    expect(dataStore.data?.transportPlaces).toHaveLength(1)
+    orchestrator.dispose()
+  })
+
   it('loads one snapshot and applies machine selection to the data store', async () => {
     const loader = vi.fn(() => Promise.resolve(createDemoData()))
     const dataStore = new ShipmentDataStore()
@@ -175,7 +201,7 @@ describe('ScannerWorkflowOrchestrator', () => {
     orchestrator.start()
     await Promise.resolve()
     orchestrator.selectContainer('C1')
-    orchestrator.send({ productId: 'P3', type: 'product-scanned' })
+    orchestrator.selectProduct('P3')
     expect(machine.feedback.message).toBe('Товар отсутствует в выбранном контейнере')
     expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
     expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
@@ -256,7 +282,7 @@ describe('ScannerWorkflowOrchestrator', () => {
 
     mouseWorkflow.selectContainer('C2')
     const adapter = new BarcodeInputAdapter(new BarcodeResolver(createDemoData()), scanWorkflow)
-    adapter.submit('c2')
+    adapter.submit('N00002')
     expect(scanMachine.source).toEqual(mouseMachine.source)
     expect(scanStore.sourceFilter).toEqual(mouseStore.sourceFilter)
     expect(scanWorkflow.sourceMode).toBe(mouseWorkflow.sourceMode)

@@ -201,7 +201,7 @@ describe('ScannerWorkflowOrchestrator', () => {
     orchestrator.start()
     await Promise.resolve()
     orchestrator.selectContainer('C1')
-    orchestrator.send({ productId: 'P3', type: 'product-scanned' })
+    orchestrator.selectProduct('P3')
     expect(machine.feedback.message).toBe('Товар отсутствует в выбранном контейнере')
     expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
     expect(dataStore.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
@@ -282,7 +282,7 @@ describe('ScannerWorkflowOrchestrator', () => {
 
     mouseWorkflow.selectContainer('C2')
     const adapter = new BarcodeInputAdapter(new BarcodeResolver(createDemoData()), scanWorkflow)
-    adapter.submit('c2')
+    adapter.submit('N00002')
     expect(scanMachine.source).toEqual(mouseMachine.source)
     expect(scanStore.sourceFilter).toEqual(mouseStore.sourceFilter)
     expect(scanWorkflow.sourceMode).toBe(mouseWorkflow.sourceMode)

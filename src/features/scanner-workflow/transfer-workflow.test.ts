@@ -24,8 +24,8 @@ describe('Transfers and returns through scanner workflow', () => {
     const createdId = workflow.createTransportPlace()
     expect(machine.activeTransportPlaceId).toBe(createdId)
     expect(data.activeTransportPlaceId).toBe(createdId)
-    scan('C1')
-    scan('C1')
+    scan('N00001')
+    scan('N00001')
     expect(data.data?.transportPlaces).toHaveLength(2)
     expect(data.data?.allocationLines.every((line) => line.transportPlaceId === createdId)).toBe(
       true,
@@ -34,8 +34,8 @@ describe('Transfers and returns through scanner workflow', () => {
   })
   it('uses the initially loaded place for the first transfer without creating another', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('C1')
-    scan('C1')
+    scan('N00001')
+    scan('N00001')
     expect(data.data?.transportPlaces).toHaveLength(1)
     expect(machine.activeTransportPlaceId).toBe('ORD-001-TP-001')
     expect(data.activeTransportPlaceId).toBe(machine.activeTransportPlaceId)
@@ -44,13 +44,13 @@ describe('Transfers and returns through scanner workflow', () => {
   })
   it('auto-creates one destination, preserves an empty filter and rejects another transfer', async () => {
     const { data, machine, scan, workflow } = await setup(true)
-    scan('C1')
-    scan('C1')
+    scan('N00001')
+    scan('N00001')
     expect(data.distributedUnits).toBe(15)
     expect(data.data?.transportPlaces).toHaveLength(1)
     expect(machine.activeTransportPlaceId).toBe(data.activeTransportPlaceId)
     expect(workflow.getSourceRows('products')).toEqual([])
-    scan('C1')
+    scan('N00001')
     expect(machine.feedback.kind).toBe('error')
     expect(data.data?.transportPlaces).toHaveLength(1)
     expect(data.distributedUnits).toBe(15)
@@ -58,16 +58,61 @@ describe('Transfers and returns through scanner workflow', () => {
     workflow.dispose()
   })
 
-  it('clicks a container then scans only its product, preserving filter and other containers', async () => {
+  it('replaces the container filter with a whole-order product filter before transferring', async () => {
     const { data, machine, scan, workflow } = await setup()
     workflow.selectContainer('C1')
-    scan('P1')
+    workflow.selectSourceLine('L1')
+    scan('10001')
+    expect(data.distributedUnits).toBe(0)
+    expect(machine.selectedSourceLineId).toBeNull()
+    expect(machine.source).toEqual({ kind: 'product', productId: 'P1' })
+    expect(data.sourceFilter).toEqual({ productId: 'P1', type: 'product' })
+    expect(workflow.getSourceRows('products').map((row) => row.id)).toEqual(['L1', 'L3'])
+    scan('10001')
     expect(data.distributedUnits).toBe(10)
-    expect(data.remainingLines.find((l) => l.id === 'L3')?.remainingQuantity).toBe(15)
-    expect(machine.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
-    expect(data.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
-    scan('P2')
-    expect(data.distributedUnits).toBe(15)
+    scan('10001')
+    expect(data.distributedUnits).toBe(25)
+    workflow.dispose()
+  })
+
+  it('selects a product from another container without transferring', async () => {
+    const { data, machine, scan, workflow } = await setup()
+    scan('N00001')
+    scan('10003')
+    expect(data.sourceFilter).toEqual({ productId: 'P3', type: 'product' })
+    expect(machine.feedback.kind).toBe('info')
+    expect(data.distributedUnits).toBe(0)
+    expect(workflow.getSourceRows('products').map((row) => row.id)).toEqual(['L4'])
+    workflow.dispose()
+  })
+
+  it('selects an exhausted product on the source side while preserving destination context', async () => {
+    const { data, machine, scan, workflow } = await setup()
+    scan('10001')
+    scan('CMD:PRODUCT')
+    scan('N00001')
+    scan('ТМ-001')
+    const revision = workflow.transportPlaceScanRevision
+    scan('10001')
+    expect(data.sourceFilter).toEqual({ productId: 'P1', type: 'product' })
+    expect(workflow.getSourceRows('products')).toEqual([])
+    expect(machine.feedback.message).toBe('Весь товар уже распределён')
+    expect(data.distributedUnits).toBe(25)
+    expect(machine.selectedDestinationProductId).toBeNull()
+    expect(machine.activeTransportPlaceId).toBe('ORD-001-TP-001')
+    expect(workflow.transportPlaceScanRevision).toBe(revision)
+    workflow.dispose()
+  })
+
+  it('ignores source scans while confirming quantity', async () => {
+    const { data, machine, scan, workflow } = await setup()
+    scan('10001')
+    scan('CMD:QTY')
+    scan('N00002')
+    scan('10003')
+    expect(machine.step.kind).toBe('awaiting-quantity')
+    expect(data.sourceFilter).toEqual({ productId: 'P1', type: 'product' })
+    expect(data.distributedUnits).toBe(0)
     workflow.dispose()
   })
 
@@ -75,12 +120,12 @@ describe('Transfers and returns through scanner workflow', () => {
     const { data, scan, workflow } = await setup()
     const source = JSON.stringify(data.data?.sourceLines)
     const markings = JSON.stringify(data.data?.markingCodes)
-    scan('P1')
+    scan('10001')
     expect(workflow.getSourceRows('products').map((r) => r.id)).toEqual(['L1', 'L3'])
     workflow.selectSourceLine('L3')
-    scan('P1')
+    scan('10001')
     expect(data.data?.allocationLines.map((a) => a.sourceLineId)).toEqual(['L3'])
-    scan('P1')
+    scan('10001')
     expect(data.data?.allocationLines.map((a) => a.sourceLineId)).toEqual(['L3', 'L1'])
     expect(JSON.stringify(data.data?.sourceLines)).toBe(source)
     expect(JSON.stringify(data.data?.markingCodes)).toBe(markings)
@@ -92,7 +137,7 @@ describe('Transfers and returns through scanner workflow', () => {
     const scanner = await setup()
     mouse.workflow.selectProduct('P1')
     mouse.workflow.command('transfer-product')
-    scanner.scan('P1')
+    scanner.scan('10001')
     scanner.scan('CMD:PRODUCT')
     expect(mouse.data.data?.allocationLines).toEqual(scanner.data.data?.allocationLines)
     expect(mouse.data.distributedUnits).toBe(25)
@@ -102,7 +147,7 @@ describe('Transfers and returns through scanner workflow', () => {
 
   it('transfers all filtered lines and returns the whole place without losing source context', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('P1')
+    scan('10001')
     scan('CMD:ALL')
     expect(data.distributedUnits).toBe(25)
     scan('CMD:RETURN-ALL')
@@ -114,17 +159,17 @@ describe('Transfers and returns through scanner workflow', () => {
 
   it('acquires a return target independently of the source filter and keeps other places', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('C1')
-    scan('C1')
+    scan('N00001')
+    scan('N00001')
     const first = machine.activeTransportPlaceId!
     workflow.createTransportPlace()
-    scan('C2')
-    scan('C2')
+    scan('N00002')
+    scan('N00002')
     workflow.selectTransportPlace(first)
     scan('CMD:RETURN')
-    scan('P4')
+    scan('10004')
     expect(machine.step.kind).toBe('awaiting-return-product')
-    scan('P1')
+    scan('10001')
     expect(data.returnAvailable(first, 'P1')).toBe(0)
     expect(data.returnAvailable(first, 'P2')).toBe(5)
     expect(data.distributedUnits).toBe(28)
@@ -134,7 +179,7 @@ describe('Transfers and returns through scanner workflow', () => {
 
   it('limits partial quantities to a pinned line and supports cancellation without creating a place', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('P1')
+    scan('10001')
     workflow.selectSourceLine('L1')
     scan('CMD:QTY')
     expect(workflow.quantityContext?.maximum).toBe(10)
@@ -150,7 +195,7 @@ describe('Transfers and returns through scanner workflow', () => {
 
   it('moves a quantity across lines in stable order, then returns part of it', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('P1')
+    scan('10001')
     scan('CMD:QTY')
     workflow.submitQuantity(12)
     expect(data.data?.allocationLines.map((l) => [l.sourceLineId, l.quantity])).toEqual([
@@ -158,7 +203,7 @@ describe('Transfers and returns through scanner workflow', () => {
       ['L3', 2],
     ])
     scan('CMD:RETURN-QTY')
-    scan('P1')
+    scan('10001')
     expect(workflow.quantityContext?.maximum).toBe(12)
     workflow.submitQuantity(4)
     expect(data.distributedUnits).toBe(8)
@@ -184,7 +229,7 @@ describe('Transfers and returns through scanner workflow', () => {
 
   it('revalidates quantity against current data and keeps the dialog open', async () => {
     const { data, machine, scan, workflow } = await setup()
-    scan('P1')
+    scan('10001')
     scan('CMD:QTY')
     data.transferProductQuantity({
       productId: 'P1',
@@ -205,8 +250,8 @@ describe('Transfers and returns through scanner workflow', () => {
         throw new Error('Failure')
       })
     const { data, machine, scan, workflow } = await setup()
-    scan('C1')
-    scan('C1')
+    scan('N00001')
+    scan('N00001')
     expect(machine.isTransferring).toBe(false)
     expect(machine.feedback.message).toBe('Failure')
     expect(data.distributedUnits).toBe(0)
@@ -214,7 +259,7 @@ describe('Transfers and returns through scanner workflow', () => {
     workflow.start()
     await Promise.resolve()
     expect(transfer).toHaveBeenCalledTimes(1)
-    scan('C1')
+    scan('N00001')
     expect(data.distributedUnits).toBe(15)
     transfer.mockRestore()
     workflow.dispose()
@@ -223,10 +268,32 @@ describe('Transfers and returns through scanner workflow', () => {
   it('resolves newly created destination barcodes without transferring', async () => {
     const { data, machine, scan, workflow } = await setup()
     const id = workflow.createTransportPlace()
-    scan('TM1')
-    scan('tm2')
+    scan('ТМ-001')
+    scan('ТМ-002')
     expect(machine.activeTransportPlaceId).toBe(id)
     expect(data.distributedUnits).toBe(0)
     workflow.dispose()
   })
+})
+
+it('reports an ambiguous scan without choosing a side or changing data', async () => {
+  const { data, machine, scan, workflow } = await setup()
+  const snapshot = createDemoData()
+  snapshot.products[0].scanBarcode = 'N00002'
+  data.setSnapshot(snapshot)
+  scan('N00001')
+  const filter = data.sourceFilter
+  const place = machine.activeTransportPlaceId
+  scan('N00002')
+  expect(machine.feedback.message).toBe('ШК неоднозначен')
+  expect(machine.source).toEqual({ containerId: 'C1', kind: 'container' })
+  expect(data.sourceFilter).toEqual(filter)
+  expect(machine.activeTransportPlaceId).toBe(place)
+  expect(data.distributedUnits).toBe(0)
+  expect(workflow.transportPlaceScanRevision).toBe(0)
+  expect(workflow.actionHistory.latestEvent).toMatchObject({
+    title: 'ШК неоднозначен',
+    type: 'barcode-ambiguous',
+  })
+  workflow.dispose()
 })

@@ -15,18 +15,18 @@ describe('BarcodeResolver', () => {
       })
     }
   })
-  it('resolves each short mock barcode case-insensitively', () => {
+  it('resolves each displayed mock barcode case-insensitively', () => {
     const resolver = new BarcodeResolver(createDemoData())
 
-    expect(resolver.resolve(' c1 ')).toEqual({
+    expect(resolver.resolve(' n00001 ')).toEqual({
       event: { containerId: 'C1', type: 'container-scanned' },
       kind: 'resolved',
     })
-    expect(resolver.resolve('p1')).toEqual({
+    expect(resolver.resolve(' 10001 ')).toEqual({
       event: { productId: 'P1', type: 'product-scanned' },
       kind: 'resolved',
     })
-    expect(resolver.resolve('Tm1')).toEqual({
+    expect(resolver.resolve('ТМ-001')).toEqual({
       event: { transportPlaceId: 'ORD-001-TP-001', type: 'transport-place-scanned' },
       kind: 'resolved',
     })
@@ -40,5 +40,41 @@ describe('BarcodeResolver', () => {
     const resolver = new BarcodeResolver(createDemoData())
 
     expect(resolver.resolve('unknown')).toEqual({ kind: 'unknown' })
+  })
+})
+
+describe('Visible mock codes', () => {
+  it('rejects collisions across and within entity types', () => {
+    const snapshot = createDemoData()
+    snapshot.products[0].scanBarcode = ' n00001 '
+    const resolver = new BarcodeResolver(snapshot)
+
+    expect(resolver.resolve('N00001')).toEqual({ kind: 'ambiguous' })
+    snapshot.products[0].scanBarcode = snapshot.products[1].scanBarcode
+    expect(resolver.resolve('10002')).toEqual({ kind: 'ambiguous' })
+  })
+
+  it('keeps empty places and fully allocated products recognizable', () => {
+    const snapshot = createDemoData()
+    snapshot.allocationLines = snapshot.sourceLines.map((line) => ({
+      id: `${line.id}-allocated`,
+      quantity: line.quantity,
+      sourceLineId: line.id,
+      transportPlaceId: snapshot.transportPlaces[0].id,
+    }))
+    const resolver = new BarcodeResolver(snapshot)
+
+    expect(resolver.resolve('10001')).toMatchObject({
+      event: { productId: 'P1', type: 'product-scanned' },
+      kind: 'resolved',
+    })
+    snapshot.allocationLines = []
+    expect(resolver.resolve(' тм-001 ')).toMatchObject({
+      event: { type: 'transport-place-scanned' },
+      kind: 'resolved',
+    })
+    for (const internalCode of ['C1', 'P1', 'TM1']) {
+      expect(resolver.resolve(internalCode)).toEqual({ kind: 'unknown' })
+    }
   })
 })

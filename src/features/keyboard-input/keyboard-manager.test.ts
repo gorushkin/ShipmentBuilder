@@ -318,3 +318,32 @@ describe('KeyboardManager', () => {
     expect(sequence).not.toHaveBeenCalled()
   })
 })
+
+it('игнорирует keyup без key при ручном вводе и сохраняет работоспособность', () => {
+  const { keyboard, sequence, tap } = setup()
+  const incomplete = stroke('Unidentified')
+  Reflect.deleteProperty(incomplete, 'key')
+
+  expect(() =>
+    keyboard.keyUp(incomplete, { editing: true, targetId: 'barcode-input' }),
+  ).not.toThrow()
+  for (const key of ['N', '0', '0', '0', '0', '1', 'Enter']) tap(key)
+  expect(sequence).toHaveBeenCalledWith('N00001')
+})
+
+it.each(['key', 'code'])('не исполняет отложенную команду после события без %s', (field) => {
+  const { down, keyboard, up } = setup()
+  const handler = vi.fn()
+  keyboard.register({ handler, shortcut: 'F2' })
+  down('F2')
+  const incomplete = stroke('F2')
+  Reflect.deleteProperty(incomplete, field)
+
+  expect(keyboard.keyUp(incomplete, page)).toBe(false)
+  up('F2')
+  expect(handler).not.toHaveBeenCalled()
+  expect(keyboard.keyDown(incomplete, page)).toBe(false)
+  down('F2')
+  up('F2')
+  expect(handler).toHaveBeenCalledTimes(1)
+})

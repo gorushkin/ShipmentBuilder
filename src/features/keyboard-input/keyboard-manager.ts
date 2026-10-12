@@ -153,6 +153,10 @@ export class KeyboardManager {
 
   keyDown(stroke: KeyboardStroke, context: KeyboardContext): boolean {
     if (this.isSuspended) return false
+    if (typeof stroke.key !== 'string' || typeof stroke.code !== 'string') {
+      this.reset()
+      return false
+    }
     if (stroke.isComposing) {
       this.reset()
       return false
@@ -211,6 +215,10 @@ export class KeyboardManager {
 
   keyUp(stroke: KeyboardStroke, context: KeyboardContext): boolean {
     if (this.isSuspended) return false
+    if (typeof stroke.key !== 'string' || typeof stroke.code !== 'string') {
+      this.reset()
+      return false
+    }
     this.reconcileModifiers(stroke)
     this.setContext(context)
     const captured = this.captured.delete(stroke.code)

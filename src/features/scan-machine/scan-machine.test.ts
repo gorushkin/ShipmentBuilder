@@ -25,13 +25,14 @@ describe('ScanMachine operation lifecycle', () => {
   it('preserves the pre-operation selection on failure', () => {
     const m = new ScanMachine()
     m.mouseContainerSelected('C1')
-    m.send({ productId: 'P1', type: 'product-scanned' })
+    m.mouseProductSelected('P1')
+    m.send({ command: 'transfer-product-from-container', type: 'command-scanned' })
     expect(m.pendingEffect).toMatchObject({
       kind: 'transfer',
       scope: { containerId: 'C1', productId: 'P1' },
     })
     m.send({ id: m.pendingEffect!.id, message: 'Нет остатка', type: 'operation-failed' })
-    expect(m.step).toEqual({ containerId: 'C1', kind: 'container-selected' })
+    expect(m.step).toEqual({ containerId: 'C1', kind: 'product-selected', productId: 'P1' })
     expect(m.feedback.message).toBe('Нет остатка')
   })
 

@@ -70,3 +70,42 @@ describe('Destination navigation selection', () => {
     expect(machine.activeTransportPlaceId).toBe(id)
   })
 })
+
+describe('Scanned transport place navigation', () => {
+  it('publishes a new navigation revision for every successful scan, including the active empty place', async () => {
+    const { data, machine, workflow } = await setup()
+    const initial = machine.activeTransportPlaceId!
+    workflow.selectContainer('C1')
+    workflow.send({ transportPlaceId: initial, type: 'transport-place-scanned' })
+    expect(workflow.transportPlaceScanRevision).toBe(1)
+    workflow.send({ transportPlaceId: initial, type: 'transport-place-scanned' })
+    expect(workflow.transportPlaceScanRevision).toBe(2)
+    const created = workflow.createTransportPlace()!
+    expect(workflow.transportPlaceScanRevision).toBe(2)
+    workflow.send({ transportPlaceId: created, type: 'transport-place-scanned' })
+    expect(workflow.transportPlaceScanRevision).toBe(3)
+    expect(data.sourceFilter).toEqual({ containerId: 'C1', type: 'container' })
+    expect(data.distributedUnits).toBe(0)
+    workflow.dispose()
+  })
+
+  it('does not publish navigation for rejected scans', async () => {
+    const { machine, workflow } = await setup()
+    workflow.send({ transportPlaceId: 'missing', type: 'transport-place-scanned' })
+    expect(workflow.transportPlaceScanRevision).toBe(0)
+    workflow.selectProduct('P1')
+    workflow.command('request-transfer-quantity')
+    workflow.send({
+      transportPlaceId: machine.activeTransportPlaceId!,
+      type: 'transport-place-scanned',
+    })
+    expect(workflow.transportPlaceScanRevision).toBe(0)
+    workflow.command('cancel')
+    workflow.dispose()
+    workflow.send({
+      transportPlaceId: machine.activeTransportPlaceId!,
+      type: 'transport-place-scanned',
+    })
+    expect(workflow.transportPlaceScanRevision).toBe(0)
+  })
+})

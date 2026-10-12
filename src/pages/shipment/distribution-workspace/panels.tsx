@@ -206,6 +206,14 @@ export const DestinationPanel = observer(function DestinationPanel() {
   const activePlace = places.find((place) => place.isActive)
   const [mode, setMode] = useState<DestinationTableMode>('transport-places')
   const [previousActiveId, setPreviousActiveId] = useState(activePlace?.id)
+  const [previousScanRevision, setPreviousScanRevision] = useState(
+    workflow.transportPlaceScanRevision,
+  )
+
+  if (previousScanRevision !== workflow.transportPlaceScanRevision) {
+    setPreviousScanRevision(workflow.transportPlaceScanRevision)
+    setMode('transport-place-products')
+  }
 
   if (previousActiveId !== activePlace?.id) {
     setPreviousActiveId(activePlace?.id)

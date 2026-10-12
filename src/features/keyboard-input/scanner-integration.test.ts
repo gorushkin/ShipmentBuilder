@@ -24,16 +24,16 @@ it('доставляет штрихкод адаптеру во время пе�
       keyboard.keyUp(stroke, { editing: false })
     }
   }
-  scan('C1')
-  scan('C1')
+  scan('N00001')
+  scan('N00001')
   expect(machine.isTransferring).toBe(true)
   const pending = machine.pendingEffect
   if (!pending) throw new Error('Ожидалось перемещение')
-  scan('C2')
+  scan('N00002')
   expect(receive).toHaveBeenLastCalledWith({ containerId: 'C2', type: 'container-scanned' })
   expect(machine.pendingEffect?.id).toBe(pending.id)
   machine.send({ id: pending.id, transportPlaceId: 'TM1', type: 'operation-succeeded' })
-  scan('C2')
+  scan('N00002')
   expect(machine.source).toEqual({ containerId: 'C2', kind: 'container' })
   keyboard.reset()
 })

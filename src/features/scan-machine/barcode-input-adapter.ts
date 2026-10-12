@@ -2,7 +2,7 @@ import { BarcodeResolver } from './barcode-resolver'
 import type { ResolvedScanEvent } from './scan-machine'
 
 interface ScanReceiver {
-  barcodeUnknown(): void
+  barcodeUnknown(reason?: 'ambiguous' | 'unknown'): void
   send(event: ResolvedScanEvent): void
 }
 
@@ -17,8 +17,8 @@ export class BarcodeInputAdapter {
 
   submit(rawValue: string): void {
     const resolution = this.resolver.resolve(rawValue)
-    if (resolution.kind === 'unknown') {
-      this.receiver.barcodeUnknown()
+    if (resolution.kind !== 'resolved') {
+      this.receiver.barcodeUnknown(resolution.kind)
       return
     }
     this.receiver.send(resolution.event)

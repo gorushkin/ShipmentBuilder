@@ -36,6 +36,7 @@ export class ScannerWorkflowOrchestrator {
   private lifecycleId = 0
   private lastExecutedId: string | null = null
   sourceMode: SourceTableMode = 'containers'
+  transportPlaceScanRevision = 0
 
   constructor(
     machine: ScanMachine,
@@ -50,8 +51,10 @@ export class ScannerWorkflowOrchestrator {
     this.alerts = alerts
     this.actionHistory = actionHistory
     makeObservable(this, {
+      send: action,
       setSourceMode: action,
       sourceMode: observable,
+      transportPlaceScanRevision: observable,
     })
   }
 
@@ -391,8 +394,8 @@ export class ScannerWorkflowOrchestrator {
     this.machine.send({ type: 'mouse-filter-cleared' })
   }
 
-  barcodeUnknown(): void {
-    const issue = this.machine.barcodeUnknown()
+  barcodeUnknown(reason: 'ambiguous' | 'unknown' = 'unknown'): void {
+    const issue = this.machine.barcodeUnknown(reason)
     if (issue) {
       this.actionHistory.append({ level: 'error', title: issue.message, type: issue.code })
       this.alerts.publish(issue)
@@ -440,6 +443,7 @@ export class ScannerWorkflowOrchestrator {
         return
       }
       if (
+        event.type !== 'product-scanned' &&
         source.kind === 'container' &&
         !this.dataStore.remainingLines.some(
           (line) =>
@@ -483,6 +487,16 @@ export class ScannerWorkflowOrchestrator {
       return
     }
     this.machine.send(event)
+    if (event.type === 'transport-place-scanned') this.transportPlaceScanRevision += 1
+    if (
+      event.type === 'product-scanned' &&
+      this.machine.step.kind === 'product-selected' &&
+      !this.dataStore.remainingLines.some(
+        (line) => line.productId === event.productId && line.remainingQuantity > 0,
+      )
+    ) {
+      this.reject('Весь товар уже распределён')
+    }
   }
 
   private syncSourceFilter(): void {

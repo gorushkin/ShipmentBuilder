@@ -21,8 +21,8 @@ export type ScanStep =
 export type ScanEffect = PendingOperation
 export type ScanFeedback = { kind: 'error' | 'info' | 'processing'; message: string }
 export type ScanIssue = {
-  code: 'barcode-unrecognized'
-  message: 'ШК не распознан'
+  code: 'barcode-ambiguous' | 'barcode-unrecognized'
+  message: 'ШК неоднозначен' | 'ШК не распознан'
   type: 'error'
 }
 export type ScanErrorCode =
@@ -196,6 +196,13 @@ export class ScanMachine {
       case 'mouse-product-selected':
       case 'mouse-source-line-selected': {
         const scanned = event.type === 'product-scanned'
+        if (scanned && this.source.kind === 'container') {
+          this.source = { kind: 'product', productId: event.productId }
+          this.selectedSource = { ...this.source }
+          this.selectedSourceLineId = null
+          this.step = { kind: 'product-selected', productId: event.productId }
+          break
+        }
         if (
           scanned &&
           this.selectedSource?.kind === 'product' &&
@@ -207,13 +214,6 @@ export class ScanMachine {
         }
         const repeated = this.source.kind === 'product' && this.source.productId === event.productId
         const containerId = this.source.kind === 'container' ? this.source.containerId : undefined
-        if (scanned && containerId) {
-          this.begin({
-            kind: 'transfer',
-            scope: { containerId, kind: 'container', productId: event.productId },
-          })
-          return
-        }
         if (!containerId) this.source = { kind: 'product', productId: event.productId }
         this.selectedSource = { containerId, kind: 'product', productId: event.productId }
         this.selectedSourceLineId =
@@ -343,11 +343,11 @@ export class ScanMachine {
   private reject(message: string): void {
     this.feedback = { kind: 'error', message }
   }
-  barcodeUnknown(): ScanIssue | null {
+  barcodeUnknown(reason: 'ambiguous' | 'unknown' = 'unknown'): ScanIssue | null {
     if (this.isTransferring) return null
     const issue: ScanIssue = {
-      code: 'barcode-unrecognized',
-      message: 'ШК не распознан',
+      code: reason === 'ambiguous' ? 'barcode-ambiguous' : 'barcode-unrecognized',
+      message: reason === 'ambiguous' ? 'ШК неоднозначен' : 'ШК не распознан',
       type: 'error',
     }
     this.reject(issue.message)

@@ -234,11 +234,11 @@ export class ShipmentDataStore {
     const sequence = ++this.transportPlaceSequence
     const suffix = String(sequence).padStart(3, '0')
     const place: TransportPlace = {
-      barcode: `TM${sequence}`,
+      barcode: `ТМ-${suffix}`,
       id: `${this.data.order.id}-TP-${suffix}`,
       number: `ТМ-${suffix}`,
       orderId: this.data.order.id,
-      scanBarcode: `TM${sequence}`,
+      scanBarcode: `ТМ-${suffix}`,
       sequence,
     }
     this.data.transportPlaces.push(place)

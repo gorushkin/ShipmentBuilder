@@ -3,7 +3,8 @@ import type { ShipmentData } from '@/domain/shipment/types'
 import { barcodeCommands } from './commands'
 import type { ResolvedScanEvent } from './scan-machine'
 
-export type BarcodeResolution = { event: ResolvedScanEvent; kind: 'resolved' } | { kind: 'unknown' }
+export type BarcodeResolution =
+  { event: ResolvedScanEvent; kind: 'resolved' } | { kind: 'ambiguous' | 'unknown' }
 
 export class BarcodeResolver {
   private readonly getData: () => null | ShipmentData
@@ -20,25 +21,22 @@ export class BarcodeResolver {
     const data = this.getData()
     if (!data) return { kind: 'unknown' }
 
-    const container = data.containers.find((item) => item.scanBarcode.toUpperCase() === barcode)
-    if (container) {
-      return { event: { containerId: container.id, type: 'container-scanned' }, kind: 'resolved' }
+    const matches: ResolvedScanEvent[] = []
+    for (const container of data.containers) {
+      if (container.scanBarcode.trim().toUpperCase() === barcode)
+        matches.push({ containerId: container.id, type: 'container-scanned' })
+    }
+    for (const product of data.products) {
+      if (product.scanBarcode.trim().toUpperCase() === barcode)
+        matches.push({ productId: product.id, type: 'product-scanned' })
+    }
+    for (const transportPlace of data.transportPlaces) {
+      if (transportPlace.scanBarcode.trim().toUpperCase() === barcode)
+        matches.push({ transportPlaceId: transportPlace.id, type: 'transport-place-scanned' })
     }
 
-    const product = data.products.find((item) => item.scanBarcode.toUpperCase() === barcode)
-    if (product) {
-      return { event: { productId: product.id, type: 'product-scanned' }, kind: 'resolved' }
-    }
-
-    const transportPlace = data.transportPlaces.find(
-      (item) => item.scanBarcode.toUpperCase() === barcode,
-    )
-    if (transportPlace) {
-      return {
-        event: { transportPlaceId: transportPlace.id, type: 'transport-place-scanned' },
-        kind: 'resolved',
-      }
-    }
+    if (matches.length > 1) return { kind: 'ambiguous' }
+    if (matches.length === 1) return { event: matches[0], kind: 'resolved' }
 
     return { kind: 'unknown' }
   }

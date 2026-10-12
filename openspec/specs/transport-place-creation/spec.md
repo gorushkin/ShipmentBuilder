@@ -50,7 +50,7 @@
 
 ### Requirement: Active transport place
 
-`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter и режимы таблиц, очищать выбор товара назначения и SHALL NOT менять allocations.
+`ShipmentDataStore` SHALL хранить активное транспортное место по ID. После загрузки snapshot `ScannerWorkflowOrchestrator` SHALL выбрать первое существующее ТМ, если активного выбора ещё нет. Клик строки ТМ, скан штрихкода и ручное создание SHALL обновлять активное ТМ через `ScanMachine`; оркестратор SHALL синхронизировать ID с `ShipmentDataStore`. Выбор SHALL сохранять source filter; скан SHALL открывать товары выбранного ТМ справа, остальные способы сохраняют существующие правила режимов, очищать выбор товара назначения и SHALL NOT менять allocations.
 
 #### Scenario: Created place becomes active
 

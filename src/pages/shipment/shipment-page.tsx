@@ -36,9 +36,10 @@ export const ShipmentPage = observer(function ShipmentPage() {
     hasSnapshot: scannerWorkflowOrchestrator.hasSnapshot,
     step: scanMachine.step,
   })
+
   return (
     <>
-      <main className="grid h-dvh min-h-[600px] min-w-[1120px] grid-rows-[auto_auto_auto_auto_minmax(0,1fr)_auto] gap-4 bg-background p-6 text-[13px] text-foreground [@media(max-width:1300px)]:gap-3 [@media(max-width:1300px)]:p-4">
+      <main className="grid h-dvh min-h-[600px] min-w-[1120px] grid-rows-[auto_auto_auto_auto_minmax(0,1fr)_auto] gap-2 bg-background p-4 text-[13px] text-foreground">
         <ShipmentHeader />
         <BarcodeInput
           actionStatus={actionStatus}

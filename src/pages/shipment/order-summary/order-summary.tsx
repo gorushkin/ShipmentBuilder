@@ -8,14 +8,13 @@ import { Metrics } from '@/pages/shipment/summary'
 export const OrderSummary = observer(function OrderSummary() {
   return (
     <section
-      className="grid grid-cols-[180px_minmax(0,1fr)_230px] items-center gap-[22px] rounded-lg border border-summary-border bg-card p-5 [@media(max-width:1300px)]:grid-cols-[150px_1fr_190px] [@media(max-width:1300px)]:gap-3.5 [@media(max-width:1300px)]:p-4"
+      className="grid grid-cols-[180px_minmax(0,1fr)_230px] items-center gap-[22px] rounded-lg border border-summary-border bg-card px-5 py-3 [@media(max-width:1300px)]:grid-cols-[150px_1fr_190px] [@media(max-width:1300px)]:gap-3.5 [@media(max-width:1300px)]:px-4"
       aria-label="Сведения о заказе"
     >
       <div className="grid gap-1 border-r border-divider">
-        <span className="text-[10px] font-[650] tracking-[1.2px] text-subtle-foreground">
-          ЗАКАЗ
-        </span>
-        <strong className="text-[18px] tracking-[0.3px]">{store.order?.number ?? '—'}</strong>
+        <strong className="text-[14px] whitespace-nowrap">
+          Заказ №{store.order?.number ?? '—'}
+        </strong>
         <span className="text-xs leading-normal text-muted-foreground">
           {store.order?.clientName ?? 'Загрузка…'}
         </span>

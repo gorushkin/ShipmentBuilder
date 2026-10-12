@@ -166,7 +166,7 @@ export const SourcePanel = observer(function SourcePanel() {
       className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-panel-border bg-card"
       aria-labelledby="source-title"
     >
-      <header className="grid gap-4 p-4">
+      <header className="grid gap-2 px-4 py-2">
         <div className="flex min-h-8 flex-wrap items-center gap-2">
           <Box className="size-[17px] text-primary" aria-hidden="true" />
           <h2 className="text-[14px] font-[650]" id="source-title">
@@ -243,7 +243,7 @@ export const DestinationPanel = observer(function DestinationPanel() {
       className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-panel-border bg-card"
       aria-labelledby="destination-title"
     >
-      <header className="grid gap-4 p-4">
+      <header className="grid gap-2 px-4 py-2">
         <div className="flex min-h-8 flex-wrap items-center gap-2">
           <Layers className="size-[17px] text-primary" aria-hidden="true" />
           <h2 className="text-[14px] font-[650]" id="destination-title">
@@ -306,7 +306,7 @@ const TransferAction = observer(function TransferAction({
   return (
     <Button
       variant="outline"
-      className="grid h-auto min-h-[50px] grid-cols-[14px_minmax(0,1fr)_max-content] gap-2 p-2.5 text-left text-[11px] leading-normal whitespace-normal [&>[data-slot=kbd]]:col-start-3"
+      className="grid h-auto min-h-[40px] grid-cols-[14px_minmax(0,1fr)_max-content] gap-2 px-2.5 py-1.5 text-left text-[11px] leading-normal whitespace-normal [&>[data-slot=kbd]]:col-start-3"
       disabled={!available()}
       onClick={run}
       shortcut={shortcut}
@@ -387,16 +387,16 @@ export const TransferActions = observer(function TransferActions() {
 
   return (
     <aside
-      className="grid min-h-0 content-start gap-2.5 overflow-y-auto"
+      className="grid min-h-0 content-start gap-2 overflow-y-auto"
       aria-label="Распределение товаров"
     >
-      <div className="grid gap-6">
-        <div className="grid gap-2.5" role="group" aria-label="Перенос в ТМ">
+      <div className="grid gap-3">
+        <div className="grid gap-1.5" role="group" aria-label="Перенос в ТМ">
           {transferActions.map(renderAction)}
         </div>
-        <div className="grid gap-2.5" role="group" aria-label="PAL/MIX">
+        <div className="grid gap-1.5" role="group" aria-label="PAL/MIX">
           <UnavailableButton
-            className="w-full min-h-[38px] text-[11px]"
+            className="w-full min-h-8 text-[11px]"
             variant="outline"
             shortcut={shipmentShortcuts.pal}
             title={commands.pal.description}
@@ -404,7 +404,7 @@ export const TransferActions = observer(function TransferActions() {
             {commands.pal.label}
           </UnavailableButton>
           <UnavailableButton
-            className="w-full min-h-[38px] text-[11px]"
+            className="w-full min-h-8 text-[11px]"
             variant="outline"
             shortcut={shipmentShortcuts.mix}
             title={commands.mix.description}
@@ -412,7 +412,7 @@ export const TransferActions = observer(function TransferActions() {
             {commands.mix.label}
           </UnavailableButton>
         </div>
-        <div className="grid gap-2.5" role="group" aria-label="Возврат из ТМ">
+        <div className="grid gap-1.5" role="group" aria-label="Возврат из ТМ">
           {returnActions.map(renderAction)}
         </div>
       </div>
